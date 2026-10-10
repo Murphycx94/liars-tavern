@@ -10,6 +10,11 @@ extends SceneTree
 # --showcase=poker 用德州展台的最坏情况(8 位酒客、每摞筹码与下注摆满、7 个底池,约 900 枚筹码),
 # 机位 seat / overview 取自 TableWorld;--showcase=bomb_cat 用炸弹猫 6 人大桌展台(手牌、牌堆、弃牌堆、自己举着 8 张),
 # 机位 bomb_seat / bomb_overview / bomb_fp / bomb_close(预算见 tools/perf_budget.gd:bomb_seat、bomb_fp ≤ 700 draw call);第一人称 fp 两种展台都有(取自 TableWorld.first_person_view);德州的帧耗时要求不超过骗子酒馆 4 人展台的 1.25 倍(德州规格 §8)。
+# --showcase=dou_dizhu 用斗地主 3 人小桌展台(出牌中:三家牌扇、两行牌、帽子、报警),机位 ddz_seat / ddz_overview / ddz_fp
+# (预算:ddz_seat、ddz_fp ≤ 700 draw call,ddz_overview ≤ 900)。
+# --showcase=liars_dice 用吹牛骰子 6 人大桌展台(六只骰盅、自己盅底下 5 颗骰子、桌心出价标记),机位 dice_seat / dice_overview /
+# dice_fp / dice_close(预算见 tools/perf_budget.gd:dice_seat、dice_fp ≤ 700 draw call);--dice-state=counting 先摆开盅计数
+# (全场 27 颗骰子排开、一半亮着金光圈)再测,默认 bidding。
 # --celebrate:展台上开演结算庆祝(tools/celebrate_stage.gd,第一炮的彩纸正飘着时开测),机位 celebrate(胜者特写环绕)/
 # celebrate_table(整桌环绕),三种展台都能用;预算同其余机位(≤ 900 draw call)。
 
@@ -20,7 +25,8 @@ const SceneCensus := preload("res://tools/scene_census.gd")
 const WARMUP_FRAMES := 60
 const BIAS_NUDGE := 0.00001   # 每帧来回微调投影灯的 shadow_bias,让阴影图失效重画(画面看不出差别)
 const SHOWCASES := {"liars": "res://tools/showcase.gd", "poker": "res://tools/poker_showcase.gd",
-	"bomb_cat": "res://tools/bomb_cat_showcase.gd"}
+	"bomb_cat": "res://tools/bomb_cat_showcase.gd", "liars_dice": "res://tools/liars_dice_showcase.gd",
+	"dou_dizhu": "res://tools/dou_dizhu_showcase.gd"}
 # ④ 建的顶层节点(room-off / decor-off 用;同 tests/test_tavern_build.gd)
 const ROOM_NODES := ["Room", "Fireplace", "Bar", "Window", "WindowView", "Door", "DoorView", "Decor_", "WallProps_", "Clock",
 	"Pendulum", "Piano", "PianoBench", "CoatRack", "Barrel", "Crate", "Clutter", "Rugs", "Sconce", "Decals", "SmokeLayer", "HearthHaze"]
@@ -32,6 +38,8 @@ var _post_fx: PostFx
 var _world: TableWorld = null   # 德州展台的牌桌:机位从它取
 var _liars_world: TableWorld = null   # 骗子酒馆展台的牌桌:第一人称机位 fp 从它取
 var _bomb: Node = null                 # 炸弹猫展台:bomb_* 机位从它取
+var _ddz: Node = null                  # 斗地主展台:ddz_* 机位从它取
+var _dice: Node = null                 # 吹牛骰子展台:dice_* 机位从它取
 var _celebrate_world: TableWorld = null   # --celebrate:开演庆祝的牌桌
 var _kind := "liars"
 
@@ -69,6 +77,10 @@ func _run() -> void:
 	await showcase.build(_tavern)
 	_world = showcase.get("world") if kind == "poker" else null
 	_bomb = showcase if kind == "bomb_cat" else null
+	_ddz = showcase if kind == "dou_dizhu" else null
+	_dice = showcase if kind == "liars_dice" else null
+	if _dice != null:
+		await _dice.stage(opts.get("dice-state", "bidding"))
 	_liars_world = showcase.get("world") if kind == "liars" else null
 	_kind = kind
 	if opts.has("celebrate"):
@@ -362,6 +374,32 @@ func _place_camera(view: String) -> bool:
 		var bomb_xform: Transform3D = _bomb.view(view)
 		_tavern.camera_rig.snap(bomb_xform.origin, bomb_xform.origin - bomb_xform.basis.z)
 		_tavern.camera_rig.fill_light.light_energy = TableWorld.SEAT_FILL_LIGHT if view == "bomb_seat" else 0.0
+		return true
+	if _ddz != null and view.begins_with("ddz_"):
+		# 斗地主展台(出牌中的那一桌):座位越肩 / 第一人称 / 俯视
+		var ddz_world: TableWorld = _ddz.world
+		if view == "ddz_fp":
+			CameraViews.place_first_person(_tavern.camera_rig, ddz_world, 1, view)
+			return true
+		CameraViews.leave_first_person(ddz_world, 1)
+		_ddz.cards.present_my_fan()
+		_tavern.camera_rig.stop_follow()
+		_tavern.camera_rig.camera.fov = CameraRig.DEFAULT_FOV
+		var ddz_xform: Transform3D = _ddz.view(view)
+		_tavern.camera_rig.snap(ddz_xform.origin, ddz_xform.origin - ddz_xform.basis.z)
+		_tavern.camera_rig.fill_light.light_energy = TableWorld.SEAT_FILL_LIGHT if view == "ddz_seat" else 0.0
+		return true
+	if _dice != null and view.begins_with("dice_"):
+		var dice_world: TableWorld = _dice.world
+		if view == "dice_fp":
+			CameraViews.place_first_person(_tavern.camera_rig, dice_world, 1, view)
+			return true
+		CameraViews.leave_first_person(dice_world, 1)
+		_tavern.camera_rig.stop_follow()
+		_tavern.camera_rig.camera.fov = CameraRig.DEFAULT_FOV
+		var dice_xform: Transform3D = _dice.view(view)
+		_tavern.camera_rig.snap(dice_xform.origin, dice_xform.origin - dice_xform.basis.z)
+		_tavern.camera_rig.fill_light.light_energy = TableWorld.SEAT_FILL_LIGHT if view == "dice_seat" else 0.0
 		return true
 	if view == "fp" or view == "poker_fp":
 		# 第一人称(V 切换):自己的头只投影不渲染,手牌拿在镜头右下方

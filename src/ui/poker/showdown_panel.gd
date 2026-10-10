@@ -92,6 +92,11 @@ func set_entries(entries: Variant) -> void:
 	visible = not clean.is_empty()
 
 
+func strips() -> Array:
+	# 每行的小牌条(悬停大图从这里取候选)
+	return _rows.get_children().map(func(row: Node) -> Node: return row.get_child(0))
+
+
 func row_count() -> int:
 	return _rows.get_child_count()
 

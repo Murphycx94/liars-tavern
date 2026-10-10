@@ -75,12 +75,20 @@ const STOOL_Z := [-1.9, -1.1, -0.3, 0.5]
 const STOOL_SEAT := 0.76
 const MIRROR_SIZE := Vector2(3.08, 1.67)   # z −2.14..0.94,y 0.95..2.62
 
-# 地毯 [中心 xz, 横宽, 纵长, 纵向沿哪根轴];流苏在纵向两端外(主毯 x −1.9..1.9、z −1.85..1.75;吧台长条毯 x −2.95..−2.15、z −2.15..0.95)
+# 地毯(2026-10-10 重做,动森式毛绒毯)[中心 xz, 横宽 x, 纵长 z, 款式];款式与 decor 着色器 rug_sizes[i].w 对应:
+# main = 圆形主毯(凸起的毛绒包边、星星圈),runner = 圆角条纹长毯(两端流苏),mat = 门口小椭圆毯(毛绒包边、小花)
+# 主毯圆心必须在原点:它随牌桌放大,着色器绕原点缩放顶点(见 main_rug_scale)
+const RUG_MARGIN := 0.5          # 主毯半径 = 座位半径 + 0.5(椅子连椅背都落在毯上)
+const RUG_MAIN_RADIUS := SeatLayout.SEAT_RADIUS + RUG_MARGIN   # 1.75(小桌);德州 / 炸弹猫大桌 2.25
 const RUGS := [
-	[Vector2(0.0, -0.05), 3.6, 3.8, "x"],
-	[Vector2(-2.55, -0.6), 0.8, 3.1, "z"],
+	[Vector2(0.0, 0.0), RUG_MAIN_RADIUS * 2.0, RUG_MAIN_RADIUS * 2.0, "main"],
+	[Vector2(STOOL_X, -0.6), 0.62, 3.1, "runner"],     # x −2.93..−2.31、z −2.15..0.95,吧凳正中
+	[Vector2(DOOR_X, 3.72), 1.1, 0.7, "mat"],          # 门里 x −0.9..0.2、z 3.37..4.07
 ]
-const FRINGE := 0.08
+const RUG_KINDS := ["main", "runner", "mat"]
+const FRINGE := 0.08             # 长条毯两端流苏宽
+const RUG_RIM := 0.09            # 圆毯毛绒包边宽(主毯;小毯 0.06)
+const RUG_CORNER := 0.05         # 长条毯圆角
 
 # 墙饰摆放:wall = back / front / left / right;u 沿墙、y 中心高;size 宽 × 高;tilt 度(画面内旋转)
 const DECOR := [
@@ -228,11 +236,27 @@ static func beam_ends() -> Array:
 # —— 地毯与月亮 ——
 
 static func rug_sizes() -> Array:
-	# decor 着色器的 rug_sizes[2]:(宽 x, 长 z, 流苏宽, 0)
+	# decor 着色器的 rug_sizes[3]:(半宽 x, 半长 z, 包边 / 流苏宽, 款式编号)
 	var out := []
 	for rug in RUGS:
-		out.append(Vector4(rug[1], rug[2], FRINGE, 0.0))
+		out.append(Vector4(rug[1] / 2.0, rug[2] / 2.0, rug_edge(rug), float(RUG_KINDS.find(rug[3]))))
 	return out
+
+
+static func rug_edge(rug: Array) -> float:
+	# 圆毯是包边宽(小毯按短半轴收窄),长条毯是流苏宽
+	match rug[3]:
+		"runner":
+			return FRINGE
+		"mat":
+			return 0.06
+		_:
+			return RUG_RIM
+
+
+static func main_rug_scale(table_radius: float) -> float:
+	# 主毯随牌桌放大:半径跟座位半径走(座位半径 + RUG_MARGIN),小桌 1.0,德州大桌 2.25 / 1.75
+	return (SeatLayout.seat_radius_for(table_radius) + RUG_MARGIN) / RUG_MAIN_RADIUS
 
 
 static func moon_uv() -> Vector2:

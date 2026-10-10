@@ -124,4 +124,5 @@ func _on_quip(pid: int, index: int) -> void:
 		return
 	var anchor: Callable = anchor_for.call(pid) if anchor_for.is_valid() else Callable()
 	if anchor.is_valid():
-		app.labels.track(KEY_PREFIX % pid, SpeechBubble.new(text, UiTheme.INK, Quips.BUBBLE_SECONDS), anchor, bubble_offset)
+		app.labels.track(KEY_PREFIX % pid, SpeechBubble.new(text, UiTheme.INK, Quips.BUBBLE_SECONDS), anchor, bubble_offset,
+			true)

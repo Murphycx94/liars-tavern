@@ -219,6 +219,33 @@ func giggle(hold: float) -> void:
 	_ears_to(0.3, 0.1, 0.4)
 
 
+func bonked(hold: float) -> void:
+	# 炸弹猫「甩锅」:被平底锅敲中——蚊香眼晕 hold 秒、耳朵炸开、头往后一仰
+	if not _patron.alive:
+		return
+	_eye("dizzy", 1.0)
+	_after(hold, func():
+		if not _dead:
+			_eye("dizzy", 0.0))
+	var jolt := _track(create_tween())
+	jolt.tween_property(self, "head_add:x", -0.18, 0.06)
+	jolt.tween_property(self, "head_add:x", 0.0, 0.45).set_trans(Tween.TRANS_SINE)
+	_ears_to(-0.5, 0.05, 0.5)
+
+
+func plead(hold: float) -> void:
+	# 炸弹猫「讨要」:水汪汪的狗狗眼(眼睛着色器 plead)、歪头左右轻晃、耳朵往下耷拉
+	if not _patron.alive:
+		return
+	_eye_to("plead", 1.0, 0.15)
+	_after(hold, func(): _eye_to("plead", 0.0, 0.25))
+	var tilt := _track(create_tween())
+	tilt.tween_property(self, "head_add:z", 0.2, 0.18).set_trans(Tween.TRANS_SINE)
+	tilt.tween_property(self, "head_add:z", 0.12, maxf(hold - 0.4, 0.05)).set_trans(Tween.TRANS_SINE)
+	tilt.tween_property(self, "head_add:z", 0.0, 0.25).set_trans(Tween.TRANS_SINE)
+	_ears_to(0.3, 0.15, 0.5)
+
+
 func die() -> void:
 	# 出局:先转蚊香眼再定格 ×,星星在头顶一圈圈转,舌头吐在嘴角
 	_dead = true
@@ -342,7 +369,7 @@ func reset() -> void:
 	if _aiming:
 		_set_aiming(false)
 	head_add = Vector3.ZERO
-	for key in ["shock", "joy", "dizzy"]:
+	for key in ["shock", "joy", "dizzy", "plead"]:
 		_eye(key, 0.0)
 	_sweat.visible = false
 	_stars.visible = false

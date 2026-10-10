@@ -26,6 +26,9 @@ const TWITCH_EVERY := Vector2(1.6, 3.8)  # 出局的人隔这么久抽一下手
 const TWITCH_TIME := 0.32
 const SPIN_PIVOT := Vector3(0.0, 0.0, 0.0)   # 转圈的竖直轴(座位坐标;髋部在 z = 0.12):膝盖转到背后时离椅背(z 0.34)还远
 const CLAP_TOUCH := 0.058       # 两只爪子合拢时手心离中线(≈ 爪子半径):刚好碰上
+# 拍手的高度(身体局部):动森式大头的下巴垂到身体局部 ≈0.45–0.48,原来 0.52 的拍手点在下巴里(穿模修复 2026-10-10 实测);
+# 压到胸口下沿,爪子在下巴下面拍
+const CLAP_Y := 0.44
 
 static var _cache := {}         # 音符网格与材质(main.gd 退出时 clear_cache)
 
@@ -275,8 +278,8 @@ func _chicken(b: float) -> Dictionary:
 			pose["head"] = Vector3(0.0, 0.0, -0.18 * wiggle)
 		_:
 			var clap := _clap_curve(fposmod(c * 2.0, 1.0))
-			pose["r"] = palm(1.0, lerpf(0.2, CLAP_TOUCH, clap), 0.52)
-			pose["l"] = palm(-1.0, lerpf(0.2, CLAP_TOUCH, clap), 0.52)
+			pose["r"] = palm(1.0, lerpf(0.2, CLAP_TOUCH, clap), CLAP_Y)
+			pose["l"] = palm(-1.0, lerpf(0.2, CLAP_TOUCH, clap), CLAP_Y)
 			pose["lift"] = 0.04 * _hop(c)
 			pose["head"] = Vector3(0.1 + 0.06 * clap, 0.0, 0.0)
 	return pose
@@ -372,7 +375,7 @@ func _apply(pose: Dictionary, w: float) -> void:
 func _aim(arm: Node3D, dir: Vector3, w: float) -> void:
 	# 手臂指向 dir(身体局部方向);w < 1 时从当前姿势插过去
 	_p._resting[arm] = false
-	var q: Quaternion = _p._arm_quat(arm, arm.position + dir)
+	var q: Quaternion = _p._arm_quat(arm, arm.position + dir, true)   # 手掌不落进大头里(Patron.clear_of_head)
 	arm.quaternion = arm.quaternion.slerp(q, w) if w < 1.0 else q
 
 
@@ -399,12 +402,12 @@ func _clap(delta: float) -> void:
 		if _rest_left <= 0.0:
 			_clap_left = _rng.randi_range(CLAP_BURST.x, CLAP_BURST.y)
 			_clap_phase = 0.0
-	var right := palm(1.0, lerpf(0.2, CLAP_TOUCH, together), 0.52)
-	var left := palm(-1.0, lerpf(0.2, CLAP_TOUCH, together), 0.52)
+	var right := palm(1.0, lerpf(0.2, CLAP_TOUCH, together), CLAP_Y)
+	var left := palm(-1.0, lerpf(0.2, CLAP_TOUCH, together), CLAP_Y)
 	if _clap_left == 0:
 		# 歇着:手松开放低一点;有时举拳欢呼一下
-		right = palm(1.0, 0.26, 0.46)
-		left = palm(-1.0, 0.26, 0.46)
+		right = palm(1.0, 0.26, CLAP_Y - 0.06)
+		left = palm(-1.0, 0.26, CLAP_Y - 0.06)
 		if _pump > 0.0:
 			_pump = minf(_pump + delta / 0.9, 1.0)
 			var up := sin(PI * _pump)

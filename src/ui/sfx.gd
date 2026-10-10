@@ -20,6 +20,15 @@ const VOLUMES := {
 	# 结算庆祝:礼炮「砰」+ 纸屑沙沙 / 开场的小号「哒哒哒—哒!」/ 一阵掌声
 	"cannon_pop": -5.0, "fanfare": -8.0, "applause": -15.0,
 	"quip": -11.0,                                      # 快捷对话:轻快的两声「啵」
+	# 炸弹猫道具效果(规格 2026-10-10):平底锅「当」/ 弹簧「啵嘤」/ 盖章「砰」/ 洗牌龙卷风 / 叮铃闪光 / 小气泡「啵」/
+	# 溜走的滑哨「嗖」/ 踮脚小碎步 / 松一口气「呼」
+	"bonk": -6.0, "boing": -9.0, "stamp": -3.0, "tornado": -10.0, "sparkle": -14.0, "pop": -12.0, "sneak": -11.0,
+	"tiptoe": -15.0, "sigh": -12.0,
+	# 吹牛骰子:骰盅里哗啦哗啦 / 扣盅「啪」/ 开盅骰子磕碰 / 丢骰子「啵」/ 计数「叮」/ 掀盅沿偷看
+	"dice_shake": -8.0, "cup_slam": -4.0, "dice_clack": -9.0, "die_pop": -8.0, "count_tick": -13.0, "dice_peek": -16.0,
+	# 斗地主:牌拍在桌上「啪」/ 不出时敲桌两下 / 叫分的木鱼「笃」/ 小火箭升空的「咻——」/ 烟花「砰啪」/ 纸飞机滑翔 /
+	# 春天的风铃 / 只剩一两张时的「叮叮」报警(炸弹沿用炸弹猫的 boom)
+	"card_slap": -5.0, "knock": -8.0, "bid": -9.0, "rocket": -9.0, "firework": -8.0, "plane": -12.0, "chime": -9.0, "alarm": -12.0,
 }
 const CHIP_CLATTER_COUNT := 4         # 一次下注落下几枚筹码的碰撞声
 const CHIP_PUSH_COUNT := 14           # 全下推一整摞
@@ -188,6 +197,55 @@ func _synth(sound: String) -> AudioStreamWAV:
 			return _wav(_applause(2.8))
 		"quip":
 			return _wav(_mix([_thump(520.0, 0.05, 0.4), _offset(_bell(1175.0, 0.3), 0.04), _offset(_bell(1568.0, 0.25), 0.1)]))
+		"bonk":
+			return _wav(_mix([_pan_ring(), _thump(170.0, 0.09, 0.8), _metal_click(0.5)]))
+		"boing":
+			return _wav(_boing(0.5))
+		"stamp":
+			return _wav(_mix([_thump(78.0, 0.3, 1.0), _noise_burst(0.05, 0.7, 0.001), _offset(_thump(150.0, 0.08, 0.5), 0.01), _rattle(0.2)]))
+		"tornado":
+			return _wav(_mix([_swirl(1.15), _offset(_riffle(0.45), 0.08), _offset(_riffle(0.4), 0.72)]))
+		"sparkle":
+			return _wav(_mix([_bell(1568.0, 0.35), _offset(_bell(2093.0, 0.35), 0.05), _offset(_bell(2637.0, 0.35), 0.1),
+				_offset(_bell(3136.0, 0.45), 0.15)]))
+		"pop":
+			return _wav(_mix([_blip(520.0, 980.0, 0.07, 0.8), _noise_burst(0.015, 0.6, 0.001)]))
+		"sneak":
+			return _wav(_mix([_blip(520.0, 1500.0, 0.26, 0.45), _whoosh_up(0.22)]))
+		"tiptoe":
+			return _wav(_mix([_thump(880.0, 0.03, 0.35), _offset(_thump(990.0, 0.03, 0.3), 0.11), _offset(_thump(930.0, 0.03, 0.3), 0.22)]))
+		"sigh":
+			return _wav(_sigh(0.55))
+		"dice_shake":
+			return _wav(_dice_rattle(0.85, 6.5))
+		"cup_slam":
+			return _wav(_mix([_thump(88.0, 0.26, 1.0), _noise_burst(0.07, 0.35, 0.001), _offset(_dice_clicks(4, 0.16, 0.5), 0.02)]))
+		"dice_clack":
+			return _wav(_mix([_dice_clicks(9, 0.34, 0.75), _noise_burst(0.12, 0.15, 0.01)]))
+		"die_pop":
+			return _wav(_mix([_blip(380.0, 1250.0, 0.11, 0.85), _offset(_dice_clicks(1, 0.04, 0.6), 0.0)]))
+		"count_tick":
+			return _wav(_mix([_bell(1320.0, 0.22), _thump(660.0, 0.03, 0.25)]))
+		"dice_peek":
+			return _wav(_mix([_noise_burst(0.14, 0.08, 0.04), _offset(_dice_clicks(2, 0.08, 0.3), 0.03)]))
+		"card_slap":
+			return _wav(_mix([_noise_burst(0.04, 0.65, 0.0008), _thump(160.0, 0.07, 0.8), _offset(_noise_burst(0.03, 0.3, 0.002), 0.012)]))
+		"knock":
+			return _wav(_mix([_thump(210.0, 0.07, 0.9), _noise_burst(0.02, 0.4, 0.001),
+				_offset(_mix([_thump(190.0, 0.07, 0.8), _noise_burst(0.02, 0.4, 0.001)]), 0.14)]))
+		"bid":
+			return _wav(_mix([_thump(620.0, 0.09, 0.7), _offset(_bell(1240.0, 0.25), 0.005)]))
+		"rocket":
+			return _wav(_mix([_whoosh_up(0.6), _blip(400.0, 1800.0, 0.6, 0.25)]))
+		"firework":
+			return _wav(_firework())
+		"plane":
+			return _wav(_mix([_whoosh(0.9), _blip(700.0, 520.0, 0.9, 0.12)]))
+		"chime":
+			return _wav(_mix([_bell(1047.0, 1.0), _offset(_bell(1319.0, 1.0), 0.12), _offset(_bell(1568.0, 1.0), 0.24),
+				_offset(_bell(2093.0, 1.2), 0.36), _offset(_bell(1568.0, 0.9), 0.5)]))
+		"alarm":
+			return _wav(_mix([_bell(1760.0, 0.18), _offset(_bell(1397.0, 0.18), 0.16), _offset(_bell(1760.0, 0.2), 0.32)]))
 		"ambience":
 			return _ambience_stream()
 	push_warning("未知音效:" + sound)
@@ -469,6 +527,16 @@ func _applause(duration: float) -> PackedFloat32Array:
 	return out
 
 
+func _firework() -> PackedFloat32Array:
+	# 烟花:一声闷「砰」+ 一串细碎的噼啪(随机的短噪声点,越来越稀)
+	var layers := [_thump(90.0, 0.25, 1.0), _noise_burst(0.12, 0.5, 0.001)]
+	var t := 0.08
+	for k in 14:
+		layers.append(_offset(_noise_burst(0.012, 0.85, 0.0005), t))
+		t += _rng.randf_range(0.02, 0.07) * (1.0 + k * 0.12)
+	return _mix(layers)
+
+
 func _whoosh(duration: float) -> PackedFloat32Array:
 	var n := int(duration * RATE)
 	var out := PackedFloat32Array()
@@ -511,6 +579,116 @@ func _splat() -> PackedFloat32Array:
 	for k in 3:
 		layers.append(_offset(_drip(_rng.randf_range(700.0, 1100.0), 0.05, 0.18), 0.07 + k * _rng.randf_range(0.05, 0.08)))
 	return _mix(layers)
+
+
+func _pan_ring() -> PackedFloat32Array:
+	# 平底锅被敲:几组不成谐波的分音(锅是一块厚铁片),低一点的「当~」带一点颤
+	var n := int(0.9 * RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var partials := [[392.0, 1.0, 5.0], [910.0, 0.55, 7.0], [1665.0, 0.32, 10.0], [2598.0, 0.18, 14.0]]
+	for i in n:
+		var t := float(i) / RATE
+		var v := 0.0
+		for p in partials:
+			v += sin(TAU * p[0] * t * (1.0 + 0.004 * sin(TAU * 6.0 * t))) * p[1] * exp(-t * p[2])
+		out[i] = v * 0.42 * minf(t * 600.0, 1.0)
+	return out
+
+
+func _boing(duration: float) -> PackedFloat32Array:
+	# 弹簧「啵嘤」:音高往上滑、颤音越来越小
+	var n := int(duration * RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var phase := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var f := 190.0 + 330.0 * (1.0 - exp(-t * 6.0)) + 60.0 * sin(TAU * 13.0 * t) * exp(-t * 4.0)
+		phase += TAU * f / RATE
+		out[i] = (sin(phase) * 0.8 + sin(phase * 2.0) * 0.15) * exp(-t * 4.5) * minf(t * 300.0, 1.0) * 0.8
+	return out
+
+
+func _swirl(duration: float) -> PackedFloat32Array:
+	# 龙卷风:风声的亮度一圈圈起伏(像绕着转),中间最响
+	var n := int(duration * RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var y := 0.0
+	for i in n:
+		var t := float(i) / n
+		var cutoff := (0.03 + 0.12 * sin(t * PI)) * (0.65 + 0.35 * sin(TAU * 7.0 * t * (0.6 + t)))
+		y += cutoff * (_rng.randf_range(-1.0, 1.0) - y)
+		out[i] = y * sin(t * PI) * 1.8
+	return out
+
+
+func _blip(from_freq: float, to_freq: float, duration: float, gain: float) -> PackedFloat32Array:
+	# 一声短促的上滑正弦(小气泡、滑哨)
+	var n := int(duration * RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var phase := 0.0
+	for i in n:
+		var t := float(i) / n
+		phase += TAU * lerpf(from_freq, to_freq, t * t) / RATE
+		out[i] = sin(phase) * sin(t * PI) * gain
+	return out
+
+
+func _sigh(duration: float) -> PackedFloat32Array:
+	# 松一口气:越来越闷的气声 + 一点往下走的哼声
+	var n := int(duration * RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var y := 0.0
+	var phase := 0.0
+	for i in n:
+		var t := float(i) / n
+		y += (0.12 - 0.1 * t) * (_rng.randf_range(-1.0, 1.0) - y)
+		phase += TAU * (330.0 - 120.0 * t) / RATE
+		var env := minf(t * 8.0, 1.0) * pow(1.0 - t, 1.5)
+		out[i] = (y * 1.4 + sin(phase) * 0.12) * env
+	return out
+
+
+func _dice_clicks(count: int, duration: float, gain: float) -> PackedFloat32Array:
+	# 骰子磕碰:几声短促的木 / 塑料「嗒」(两个泛音,很快衰减),时间与音高带随机,越往后越轻
+	var out := PackedFloat32Array()
+	out.resize(int(duration * RATE) + int(0.03 * RATE))
+	for k in count:
+		var at := _rng.randf_range(0.0, duration) if count > 1 else 0.0
+		var start := int(at * RATE)
+		var freq := _rng.randf_range(1700.0, 3300.0)
+		var g := gain * _rng.randf_range(0.5, 1.0) * (1.0 - 0.5 * at / maxf(duration, 0.001))
+		for i in int(0.03 * RATE):
+			if start + i < out.size():
+				var t := float(i) / RATE
+				out[start + i] += (sin(TAU * freq * t) * 0.55 + sin(TAU * freq * 2.3 * t) * 0.25 + _rng.randf_range(-1, 1) * 0.2) \
+					* exp(-t * 220.0) * g
+	return out
+
+
+func _dice_rattle(duration: float, hz: float) -> PackedFloat32Array:
+	# 摇骰盅:皮盅里五颗骰子哗啦哗啦。每甩一下(hz)一阵密集的磕碰,外加一层闷闷的皮革摩擦声跟着节奏起伏
+	var n := int(duration * RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var y := 0.0
+	for i in n:
+		var t := float(i) / RATE
+		var swing := absf(sin(PI * hz * t))
+		y += 0.06 * (_rng.randf_range(-1.0, 1.0) - y)
+		out[i] = y * swing * 0.9 * minf(t * 20.0, 1.0) * minf((duration - t) * 12.0, 1.0)
+	var beats := int(duration * hz)
+	for b in beats:
+		var clicks := _dice_clicks(5, 0.07, 0.42)
+		var start := int((float(b) + 0.15) / hz * RATE)
+		for i in clicks.size():
+			if start + i < n:
+				out[start + i] += clicks[i]
+	return out
 
 
 func _drip(freq: float, duration: float, gain: float) -> PackedFloat32Array:

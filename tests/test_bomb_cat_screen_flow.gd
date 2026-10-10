@@ -257,7 +257,7 @@ func test_a_six_player_table_uses_the_big_table_and_survives_a_few_rounds():
 	assert_almost_eq(app.world.table_radius, SeatLayout.POKER_TABLE_RADIUS, 0.001, "6 人换大桌")
 	await wait_until(_idle, MAX_WAIT, "开局发牌")
 	_check_table()
-	assert_eq(screen.cards.held_count(2), 8, "开局每人 8 张")
+	assert_eq(screen.cards.held_count(2), BombCatDeck.HAND_SIZE + 1, "开局每人 5 张(4 张 + 1 张拆弹)")
 	await _play_to_the_end()
 	assert_not_null(screen.settlement())
 
@@ -331,3 +331,110 @@ static func _reversed(items: Array) -> Array:
 	var out := items.duplicate()
 	out.reverse()
 	return out
+
+
+# —— 道具效果(2026-10-10):导演的事件 → 效果,演完全部释放;隐藏信息;整局之后不留节点 ——
+
+func _fx_drained() -> bool:
+	return screen.fx3d.active_count() == 0
+
+
+func _play_events(events: Array) -> void:
+	for ev in events:
+		await screen.director.play(ev)
+
+
+func test_each_card_effect_spawns_its_fx_and_frees_it():
+	_open([1, 2, 3], 7)
+	await wait_until(_idle, MAX_WAIT, "开局发牌")
+	var kinds := []
+	screen.fx3d.spawned.connect(func(kind: String): kinds.append(kind))
+	await _play_events([{"type": "effect", "kind": "skip", "pid": 2}])
+	assert_has(kinds, "skip", "溜了:侧身溜走 + 小脚印")
+	kinds.clear()
+	await _play_events([{"type": "effect", "kind": "pass_turns", "pid": 2, "to": 3, "turns": 2}])
+	assert_has(kinds, "pass_turns", "甩锅:平底锅")
+	assert_eq(screen.fx3d.badge_pid(), 3, "×N 徽章挂在被甩锅的人头上")
+	assert_eq(screen.fx3d.badge_text(), "×2")
+	kinds.clear()
+	await _play_events([{"type": "turn_passed", "pid": 3, "turns": 2}])
+	assert_has(kinds, "paw_trail", "轮转:爪印跑向下一位")
+	assert_eq(screen.fx3d.badge_text(), "×2")
+	await _play_events([{"type": "turn_passed", "pid": 3, "turns": 1}])
+	assert_null(screen.fx3d.badge_pid(), "只剩一回合:徽章收起")
+	kinds.clear()
+	await _play_events([{"type": "effect", "kind": "peek", "pid": 2, "count": 3}])
+	assert_has(kinds, "peek", "偷看:放大镜")
+	kinds.clear()
+	await _play_events([{"type": "effect", "kind": "shuffle", "pid": 2}])
+	assert_has(kinds, "shuffle", "洗牌:龙卷风星星")
+	kinds.clear()
+	await _play_events([{"type": "give_requested", "pid": 2, "to": 3, "timeout": 15.0}])
+	assert_has(kinds, "beg", "讨要:狗狗眼 + 爱心")
+	kinds.clear()
+	await _play_events([{"type": "effect", "kind": "beg", "pid": 3, "from": 2, "to": 3, "got": true}])
+	assert_has(kinds, "trail", "讨要:蝴蝶结拖尾")
+	assert_has(kinds, "heart_pop", "讨要:落手时爱心「啵」")
+	kinds.clear()
+	await _play_events([{"type": "played", "pid": 2, "cards": ["snack_fish", "snack_fish"], "kind": "pair", "target": 3, "named": "",
+		"window": 3.0}, {"type": "window_resolved", "pid": 2, "kind": "pair", "effective": true, "nopes": 0, "aborted": false},
+		{"type": "effect", "kind": "steal", "pid": 2, "from": 3, "to": 2, "got": true}])
+	assert_has(kinds, "snack", "对子:零食蹦到桌上")
+	assert_has(kinds, "trail", "对子:金光拖尾")
+	kinds.clear()
+	await _play_events([{"type": "played", "pid": 3, "cards": ["snack_yarn", "snack_yarn", "snack_yarn"], "kind": "triple", "target": 2,
+		"named": "defuse", "window": 3.0}])
+	assert_has(kinds, "spotlight", "三条:聚光灯 + 「?」气泡")
+	kinds.clear()
+	await _play_events([{"type": "noped", "pid": 2, "depth": 1, "window": 3.0}, {"type": "noped", "pid": 3, "depth": 2, "window": 3.0}])
+	assert_eq(kinds.count("nope"), 2, "连环不行!:两枚印章")
+	assert_has(kinds, "stamp_mark", "印章盖下去留下印子")
+	kinds.clear()
+	await _play_events([{"type": "window_resolved", "pid": 3, "kind": "triple", "effective": true, "nopes": 2, "aborted": false},
+		{"type": "effect", "kind": "request", "pid": 3, "from": 2, "to": 3, "named": "defuse", "got": true}])
+	assert_has(kinds, "snack", "三条:零食蹦到桌上")
+	kinds.clear()
+	await _play_events([{"type": "bomb_drawn", "pid": 2}])
+	assert_has(kinds, "bomb", "摸到炸弹:炸弹猫弹出来")
+	assert_not_null(screen.fx3d.kitty())
+	kinds.clear()
+	await _play_events([{"type": "defused", "pid": 2, "deck_count": 10, "timeout": 15.0}])
+	assert_has(kinds, "defuse", "拆弹:大剪刀咔嚓")
+	await _play_events([{"type": "reinserted", "pid": 2, "deck_count": 11}])
+	assert_null(screen.fx3d.kitty(), "塞回:炸弹猫溜回牌堆")
+	kinds.clear()
+	await _play_events([{"type": "bomb_drawn", "pid": 3}, {"type": "exploded", "pid": 3, "discarded": 2}])
+	assert_has(kinds, "kaboom", "爆炸:卡通烟云")
+	assert_has(kinds, "tuft", "爆炸:炸焦的头发")
+	await wait_until(_fx_drained, MAX_WAIT, "效果全部演完释放")
+	assert_eq(screen.fx3d.active_count(), 0, "没有留下效果节点")
+
+
+func test_peek_fan_faces_only_for_the_peeker():
+	_open([1, 2, 3], 9)
+	await wait_until(_idle, MAX_WAIT, "开局发牌")
+	# 别人偷看:浮起来的三张都是牌背
+	screen.director.play({"type": "effect", "kind": "peek", "pid": 2, "count": 3})
+	await wait_until(func(): return screen.cards.rising_nodes().size() == 3, MAX_WAIT, "三张浮起来")
+	for card in screen.cards.rising_nodes():
+		assert_true(card.is_back(), "别人偷看时看不到牌面")
+	await wait_until(func(): return screen.cards.rising_nodes().is_empty(), MAX_WAIT, "落回牌堆")
+	# 自己偷看:私有视图里的三张
+	var peek: Array = session.state().deck.slice(0, 3)
+	var view := session.private_view(ME)
+	view["peek"] = peek
+	view["peek_seq"] = 999
+	screen._on_private(view)
+	screen.director.play({"type": "effect", "kind": "peek", "pid": ME, "count": 3})
+	await wait_until(func(): return screen.cards.rising_nodes().size() == 3, MAX_WAIT, "三张浮起来")
+	assert_eq(screen.cards.rising_nodes().map(func(c): return c.card_id), peek, "自己偷看看得到牌面")
+
+
+func test_no_fx_left_after_a_whole_match():
+	_open([1, 2, 3], 31)
+	await wait_until(_idle, MAX_WAIT, "开局发牌")
+	await _play_to_the_end()
+	await wait_until(_fx_drained, MAX_WAIT, "整局之后效果全部释放")
+	assert_eq(screen.fx3d.active_count(), 0, "整局打完不留效果节点(徽章、印子、炸弹猫、聚光灯都收了)")
+	assert_true(screen.cards.rising_nodes().is_empty())
+	assert_true(screen.cards.tornado_nodes().is_empty())

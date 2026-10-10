@@ -36,3 +36,10 @@ func show_toast(text: String, color := UiTheme.PARCHMENT) -> void:
 	tween.tween_interval(LIFETIME)
 	tween.tween_property(panel, "modulate:a", 0.0, 0.5)
 	tween.tween_callback(panel.queue_free)
+
+
+func clear() -> void:
+	# 进牌桌时收掉等待厅留下的提示(「某某走进了酒馆」……):开局运镜时还挂着,会压住右上的九宫格
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()

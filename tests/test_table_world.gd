@@ -172,9 +172,12 @@ func test_celebrate_unlocks_the_arms_once_its_bounces_end():
 	_arrange([1, 2])
 	var winner: Patron = world.patrons[1]
 	Engine.time_scale = FAST_CLOCK
+	# 举手的方向过 Patron.clear_of_head(穿模修复 2026-10-10:手掌不落进大头里),在开演的同一刻按当时的头算
+	var raised := Patron.SHOULDER + winner.clear_of_head(Patron.SHOULDER, Patron.HAND_CHEER - Patron.SHOULDER)
 	winner.celebrate()
 	await wait_seconds(Patron.CHEER_BOUNCES * Patron.CHEER_BOUNCE_TIME * 2.0 + CLOCK_SLACK)
-	assert_true(_right_arm_points_at(winner, Patron.HAND_CHEER), "跳完后双手仍举着")
+	assert_true(_right_arm_points_at(winner, raised), "跳完后双手仍举着")
+	assert_gt(raised.y, Patron.SHOULDER.y + 0.25, "手举过肩")
 	winner.rest_arms(false)
 	await wait_process_frames(3)
 	assert_true(_right_arm_points_at(winner, winner.rest_target(1.0)), "动作锁已解除")

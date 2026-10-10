@@ -5,8 +5,8 @@ extends Node
 #   --species=物种id     本次运行想要的形象(fox/bear/…/crocodile),只覆盖本次、不写设置;
 #                        每次名单更新与开局时打印 [debug] species {pid: id}(冒烟测试比对各进程)
 #   --autohost[=N]       自动建房;满 N 人(默认 2)且全员准备后自动开局
-#   --mode=玩法id        配合 --autohost:liars / bomb_cat / holdem / short_deck(默认 liars;非法值退出码 1),默认房名跟着玩法
-#   --hands=N            德州房主:演到第 N 手开始时散局(本手结束后结算);非法值退出码 1
+#   --mode=玩法id        配合 --autohost:liars / bomb_cat / liars_dice / dou_dizhu / holdem / short_deck(默认 liars;非法值退出码 1),默认房名跟着玩法
+#   --hands=N            德州 / 斗地主房主:演到第 N 手开始时散局(本手结束后结算);非法值退出码 1
 #   --port=端口          房主优先绑定的游戏端口(并行测试互不串房)
 #   --room=房名          房主的房间名
 #   --autojoin=IP[:端口] 自动直连
@@ -14,10 +14,14 @@ extends Node
 #   --bot                自动准备/选牌/出牌/质疑(走真实界面路径);开局后朝别人丢一个番茄、按 Q 说一句快捷语;
 #                        对局中隔几秒说一句快捷对话(九宫格,同样走真实界面路径);
 #                        德州按合法动作下注、输光再领(见 PokerBot);
-#                        炸弹猫里由 BombCatBot 出牌、偶尔不行!、摸牌、塞回、给牌(同样走牌桌的公开入口)
+#                        炸弹猫里由 BombCatBot 出牌、偶尔不行!、摸牌、塞回、给牌(同样走牌桌的公开入口);
+#                        斗地主里由 DdzBot 随机叫分、按「提示」出牌、偶尔不出(同样走牌桌的公开入口);
+#                        吹牛骰子里由 LiarsDiceBot 喊价或「开!」(经出价器的 nudge_count / pick_face 与 submit_bid / submit_challenge)
+#   --no-fidget          配合 --bot:不按 W / S 探头缩头(截图检查时画面不被自己伸出去的头挡住;冒烟测试的脖子同步要靠它,别加)
 #   --fast[=倍率]        加速演出(Engine.time_scale,默认 3)
 #   --quit-after-match   对局结束后退出(退出码 0);中途失败退出码 1
 #   --shots=目录         在关键时刻截图
+#   --shots-every=秒     配合 --shots:另外每隔这么久(真实时间)拍一张 <名>_t<序号>.png,逐帧检查演出节奏
 #   --camera=first|third 本次运行的牌桌视角(第一人称 / 越肩),只覆盖本次、不写设置
 #   --update-from=IP:端口 从这个房主下载更新并装好,装好后打印 UPDATE_READY 退出(失败退出码 1)
 #   --update-url=网址    同上,但从任意更新源(如 BuildInfo.FEED_URL + 平台 + "/")
@@ -47,6 +51,8 @@ var _fidget_step := 0
 var _tomato_from := {}   # 收到过谁丢的番茄(冒烟测试据此确认丢番茄走通)
 var _said_from := {}     # 收到过谁说的快捷语
 var _bomb_bot: BombCatBot = null
+var _ddz_bot: DdzBot = null
+var _dice_bot: LiarsDiceBot = null
 var _hands_limit := 0      # --hands:演到第几手开始时散局;0 = 不自动散局
 var _hands_dealt := 0      # 自己被发到牌的手数(冒烟测试据此确认迟到者真的上了桌)
 var _spectated := false    # 截图模式下已经观战过一次
@@ -168,6 +174,8 @@ func _ready() -> void:
 	if opts.has("shots"):
 		DirAccess.make_dir_recursive_absolute(opts["shots"])
 		_capture_later("menu", 2.5)
+		if opts.has("shots-every"):
+			_capture_every(maxf(0.2, float(opts["shots-every"])))
 	var player_name: String = opts.get("name", "测试%d" % (OS.get_process_id() % 1000))
 	if opts.has("autohost"):
 		var err := Net.host_game(player_name, room_option(opts, player_name, mode), int(opts.get("port", "0")), mode, _species())
@@ -213,6 +221,12 @@ func _process(delta: float) -> void:
 	_bot_quip(screen, delta)
 	if screen != null and screen.get("state") is BombCatScreenState:
 		_bomb_bot_tick(screen, delta)
+		return
+	if screen != null and screen.get("state") is DdzScreenState:
+		_ddz_bot_tick(screen, delta)
+		return
+	if screen != null and screen.get("state") is LiarsDiceScreenState:
+		_dice_bot_tick(screen, delta)
 		return
 	if screen != null and screen.has_method("choose_rebuy"):
 		_poker_tick(screen, delta)
@@ -298,7 +312,7 @@ func _on_update_changed() -> void:
 func _fidget(delta: float) -> void:
 	# 对局中轮流按住 W、S:走与真人相同的按键读取,头探出去再收回来
 	_fidget_timer -= delta
-	if not Net.in_game or _fidget_timer > 0.0:
+	if not Net.in_game or _fidget_timer > 0.0 or opts.has("no-fidget"):
 		return
 	_fidget_timer = BOT_FIDGET
 	var key := InputEventKey.new()
@@ -333,6 +347,48 @@ func _bomb_bot_tick(screen: Node, delta: float) -> void:
 		_think_timer = randf_range(BOT_THINK.x, BOT_THINK.y)
 	else:
 		_think_timer = 0.25
+
+
+func _ddz_bot_tick(screen: Node, delta: float) -> void:
+	# 斗地主:轮到自己就想一会儿再出手(叫分 / 提示出牌 / 不出);散局后什么都不做
+	if _ddz_bot == null:
+		_ddz_bot = DdzBot.new()
+	if _match_finished:
+		return
+	if not screen.is_my_turn():
+		_think_timer = randf_range(BOT_THINK.x, BOT_THINK.y)
+		return
+	_think_timer -= delta
+	if _think_timer > 0.0:
+		return
+	_think_timer = BOT_RETRY
+	_ddz_bot.act(screen)
+
+
+static func ddz_results_line(results: Array) -> String:
+	# 斗地主结算(按 pid 排序):「[debug] DDZ_RESULTS {1: 12, 2034: -6, 5120: -6} sum=0」;冒烟测试比对三端一致、总和为 0
+	var rows := results.filter(func(r): return r is Dictionary and r.get("pid") is int and r.get("score") is int)
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a["pid"] < b["pid"])
+	var total := 0
+	var parts := []
+	for row in rows:
+		parts.append("%d: %d" % [row["pid"], row["score"]])
+		total += row["score"]
+	return "[debug] DDZ_RESULTS {%s} sum=%d" % [", ".join(parts), total]
+
+
+func _dice_bot_tick(screen: Node, delta: float) -> void:
+	# 吹牛骰子:轮到自己时想一会儿再喊价或「开!」
+	if _dice_bot == null:
+		_dice_bot = LiarsDiceBot.new()
+	if not screen.is_my_turn():
+		_think_timer = randf_range(BOT_THINK.x, BOT_THINK.y)
+		return
+	_think_timer -= delta
+	if _think_timer > 0.0:
+		return
+	_think_timer = BOT_RETRY
+	_dice_bot.act(screen)
 
 
 func _bot_banter(seats: Array) -> void:
@@ -401,8 +457,13 @@ func _on_events(events: Array) -> void:
 				if Net.my_pid() in ev.get("pids", []):
 					_hands_dealt += 1
 					print("[debug] DEALT hand=", ev.get("hand"))
+			"hand_over":
+				if GameMode.is_dou_dizhu(Net.game_mode):
+					print("[debug] DDZ_HAND_OVER hand=%s landlord_won=%s" % [ev.get("hand"), ev.get("landlord_won")])
 			"session_over":
 				var results: Array = ev.get("results", [])
+				if GameMode.is_dou_dizhu(Net.game_mode):
+					print(ddz_results_line(results))
 				print("[debug] GAZE peers=%d necks=%d" % [_gaze_from.size(), _neck_from.size()])
 				print("[debug] BANTER tomatoes=%d said=%d" % [_tomato_from.size(), _said_from.size()])
 				print("[debug] QUIPS heard=%d" % _quip_from.size())
@@ -421,10 +482,12 @@ func _on_game_started(seats: Array) -> void:
 	await get_tree().process_frame
 	var screen: Node = app.current_screen()
 	var director = screen.get("director") if screen != null else null
-	if director is TableDirector or director is BombCatDirector:
+	if director is TableDirector or director is BombCatDirector or director is LiarsDiceDirector:
 		director.event_started.connect(_on_director_event)
 	elif director is PokerDirector:
 		director.event_started.connect(_on_poker_event)
+	elif director is DdzDirector:
+		director.event_started.connect(_on_ddz_event)
 	if director != null and opts.has("camera") and director.get("seat_camera") != null:
 		director.seat_camera.set_first_person(opts["camera"] == "first", false)
 		_capture_once("seat", 3.0)
@@ -434,6 +497,9 @@ func _on_director_event(ev: Dictionary) -> void:
 	match ev["type"]:
 		"round_started":
 			_capture_once("deal", 3.0)
+			if GameMode.is_liars_dice(Net.game_mode):
+				_capture_once("shake", 0.6)   # 吹牛骰子:全员捧着骰盅摇
+				_capture_once("peek", 1.3)   # 扣下后掀开盅沿偷看
 		"played":
 			_capture_once("played", 0.55)
 		"reveal":
@@ -447,6 +513,14 @@ func _on_director_event(ev: Dictionary) -> void:
 			_capture_once("exploded", 1.6)
 		"defused":
 			_capture_once("defused", 1.2)
+		"bid":
+			_capture_once("bid", 0.6)
+		"revealed":
+			_capture_once("dice_reveal", 1.0)
+		"die_lost":
+			_capture_once("die_lost", 0.35)
+		"player_out":
+			_capture_once("player_out", 1.0)
 		"match_over":
 			_capture_once("victory", 1.5)
 			_capture_once("settlement", 3.3)
@@ -498,6 +572,38 @@ func _on_poker_event(ev: Dictionary) -> void:
 				app.quit_game(0)
 
 
+func _on_ddz_event(ev: Dictionary) -> void:
+	# 斗地主截图标记:deal、bidding、landlord、played、bomb / rocket / plane、hand_over、settlement;房主打到 --hands 手散局
+	match ev.get("type", ""):
+		"hand_started":
+			_capture_once("deal", 2.6)
+			if Net.is_host and _hands_limit > 0 and ev.get("hand") == _hands_limit:
+				print("[debug] ending session after hand ", _hands_limit)
+				Net.end_poker_session()
+		"turn":
+			if ev.get("pid") == Net.my_pid():
+				_capture_once("my_turn_bid" if ev.get("stage") == DdzState.STAGE_BID else "my_turn", 0.4)
+		"landlord":
+			_capture_once("landlord", 1.0)
+		"played":
+			match DdzDirector.effect_for(str(ev.get("combo", ""))):
+				"bomb":
+					_capture_once("bomb", 0.75)
+				"rocket":
+					_capture_once("rocket", 0.95)
+				"plane":
+					_capture_once("plane", 0.75)
+				_:
+					_capture_once("played", 0.6)
+		"hand_over":
+			_capture_once("hand_over", 1.6)
+		"session_over":
+			_capture_once("settlement", DdzDirector.SESSION_OVER_HOLD + 1.0)
+			if opts.has("quit-after-match"):
+				await get_tree().create_timer(5.0 if Net.is_host else 4.0).timeout
+				app.quit_game(0)
+
+
 func _on_left(reason: String) -> void:
 	if opts.has("quit-after-match") and not _match_finished:
 		_fail("left_lobby: " + reason)
@@ -516,6 +622,15 @@ func _capture_once(tag: String, delay: float) -> void:
 		return
 	_shot_counts[tag] = true
 	_capture_later(tag, delay)
+
+
+func _capture_every(period: float) -> void:
+	# 按真实时间定时拍(不受 --fast 影响),序号连续
+	var index := 0
+	while is_inside_tree():
+		await get_tree().create_timer(period, true, false, true).timeout
+		_capture_later("t%03d" % index, 0.0)
+		index += 1
 
 
 func _capture_later(tag: String, delay: float) -> void:

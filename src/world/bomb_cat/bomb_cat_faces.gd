@@ -28,22 +28,38 @@ class Notifier:
 	signal built
 
 
-# 每种牌的主色(动森式明快配色):牌面横幅、图标底色;退化纹理也用它
+# 每种牌的主色(动森式粉彩,2026-10-10):牌名横幅、插画内框;退化纹理也用它。TINTS 是插画圆盘与说明框的浅底
 const ACCENTS := {
-	BACK: Color(0.56, 0.11, 0.13),
-	BombCatCard.BOMB: Color(0.33, 0.3, 0.38),
-	BombCatCard.DEFUSE: Color(0.18, 0.6, 0.45),
-	BombCatCard.SKIP: Color(0.24, 0.56, 0.86),
-	BombCatCard.PASS_TURNS: Color(0.93, 0.55, 0.18),
-	BombCatCard.PEEK: Color(0.56, 0.36, 0.78),
-	BombCatCard.SHUFFLE: Color(0.12, 0.6, 0.64),
-	BombCatCard.BEG: Color(0.9, 0.44, 0.6),
-	BombCatCard.NOPE: Color(0.86, 0.2, 0.2),
-	BombCatCard.SNACK_FISH: Color(0.78, 0.55, 0.28),
-	BombCatCard.SNACK_YARN: Color(0.78, 0.38, 0.62),
-	BombCatCard.SNACK_CARROT: Color(0.95, 0.5, 0.15),
-	BombCatCard.SNACK_BANANA: Color(0.88, 0.7, 0.12),
-	BombCatCard.SNACK_CACTUS: Color(0.3, 0.62, 0.3),
+	BACK: Color(0.17, 0.45, 0.48),
+	BombCatCard.BOMB: Color(0.42, 0.38, 0.52),
+	BombCatCard.DEFUSE: Color(0.3, 0.7, 0.58),
+	BombCatCard.SKIP: Color(0.38, 0.6, 0.9),
+	BombCatCard.PASS_TURNS: Color(0.96, 0.58, 0.36),
+	BombCatCard.PEEK: Color(0.62, 0.48, 0.86),
+	BombCatCard.SHUFFLE: Color(0.24, 0.64, 0.68),
+	BombCatCard.BEG: Color(0.95, 0.52, 0.66),
+	BombCatCard.NOPE: Color(0.9, 0.38, 0.4),
+	BombCatCard.SNACK_FISH: Color(0.9, 0.62, 0.36),
+	BombCatCard.SNACK_YARN: Color(0.84, 0.46, 0.68),
+	BombCatCard.SNACK_CARROT: Color(0.96, 0.56, 0.26),
+	BombCatCard.SNACK_BANANA: Color(0.9, 0.72, 0.24),
+	BombCatCard.SNACK_CACTUS: Color(0.4, 0.68, 0.42),
+}
+const TINTS := {
+	BACK: Color(0.85, 0.94, 0.94),
+	BombCatCard.BOMB: Color(0.92, 0.9, 0.97),
+	BombCatCard.DEFUSE: Color(0.87, 0.97, 0.93),
+	BombCatCard.SKIP: Color(0.88, 0.93, 1.0),
+	BombCatCard.PASS_TURNS: Color(1.0, 0.92, 0.85),
+	BombCatCard.PEEK: Color(0.94, 0.9, 1.0),
+	BombCatCard.SHUFFLE: Color(0.86, 0.96, 0.96),
+	BombCatCard.BEG: Color(1.0, 0.9, 0.93),
+	BombCatCard.NOPE: Color(1.0, 0.9, 0.89),
+	BombCatCard.SNACK_FISH: Color(1.0, 0.93, 0.85),
+	BombCatCard.SNACK_YARN: Color(0.99, 0.9, 0.96),
+	BombCatCard.SNACK_CARROT: Color(1.0, 0.92, 0.84),
+	BombCatCard.SNACK_BANANA: Color(1.0, 0.96, 0.83),
+	BombCatCard.SNACK_CACTUS: Color(0.9, 0.97, 0.88),
 }
 
 static var _textures := {}
@@ -224,6 +240,8 @@ static func _render(tree: SceneTree, foil: bool) -> Array:
 		vp.transparent_bg = not foil   # 圆角外透明(遮罩是黑底)
 		vp.msaa_2d = VIEWPORT_MSAA
 		vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+		if not foil:
+			vp.add_child(CardFaces.bleed_backdrop(Vector2(SIZE)))   # 圆角外透明像素的 RGB 写成牌边色,mipmap 不发黑
 		var painter := BombCatFacePainter.new(id, foil)
 		vp.add_child(painter)
 		holder.add_child(vp)
@@ -250,6 +268,10 @@ static func _array(images: Array[Image]) -> Texture2DArray:
 
 static func accent(id: String) -> Color:
 	return ACCENTS.get(id, ACCENTS[BACK])
+
+
+static func tint(id: String) -> Color:
+	return TINTS.get(id, TINTS[BACK])
 
 
 static func _fallback_image(id: String) -> Image:

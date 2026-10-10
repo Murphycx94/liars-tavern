@@ -271,7 +271,7 @@ func show_bubble(pid: int, text: String, plan: Dictionary) -> BanterBubble:
 	var mine := pid == _my_pid()
 	var bubble := BanterBubble.new(text, plan["reveal"], plan["duration"], mine)
 	var anchor := bubble_anchor(pid)
-	labels.track(BUBBLE_KEY % pid, bubble, anchor, bubble_offset.bind(pid, anchor))
+	labels.track(BUBBLE_KEY % pid, bubble, anchor, bubble_offset.bind(pid, anchor), true)
 	return bubble
 
 

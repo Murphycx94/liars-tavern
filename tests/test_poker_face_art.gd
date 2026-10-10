@@ -1,16 +1,14 @@
 extends GutTest
-# 德州牌面的几何与排版(PokerFaceArt,纯几何):超大角标约占牌高 38%、花色在点数下方、右下角标是左上的中心对称、
-# 中央大花色居中、只有 J/Q/K 有冠饰、四色花色、全部画在金边以内;
+# 德州牌面的几何与排版(PokerFaceArt,纯几何;2026-10-10 动森式重画后):
+# 圆头粗角标约占牌高 30%、花色在点数下方、右下角标是左上的中心对称;2–10 按经典排法摆点数个花色(下半倒过来),
+# A 一枚大花色,J/Q/K 是竖长的角色画框;四色两系(红系 ♥♦、深色系 ♠♣)跨系一眼分清;全部画在内框以内;
 # 缩到 30×42 像素仍认得出:角标与中央之间留出纸缝(不粘成一团)、「10」的两个数字分开、点数的笔画里没有被填实的洞;
 # 每个多边形都能三角化(draw_colored_polygon 三角化失败会报引擎错误,那一块就画不出来)。
 
 
 const ALL_RANKS := [2, 3, 4, 5, 6, 7, 8, 9, 10, PokerCard.JACK, PokerCard.QUEEN, PokerCard.KING, PokerCard.ACE]
 const SMALLEST_WIDTH := 30.0          # 规格 §6.1 摊牌条小牌 ≥ 30×42
-const RANK_SHARE := Vector2(0.36, 0.40)   # 规格 §5.2:点数约占牌高 38%
-const SPEC_DIAMOND := Color(0.2, 0.45, 0.95)
-const SPEC_CLUB := Color(0.15, 0.6, 0.25)
-const COLOR_TOLERANCE := 0.06
+const RANK_SHARE := Vector2(0.28, 0.32)   # 点数约占牌高 30%(重画前 38%:中间要摆真正的点数排法)
 const DISC_SEGMENTS := 24
 
 
@@ -50,22 +48,8 @@ func _turned(card: int) -> Array:
 	return _corner(card).map(func(poly): return PokerFaceArt.half_turn(poly))
 
 
-func _centre_group(card: int) -> Array:
-	# 中央花色 + 冠饰 + 冠饰上的宝石(宝石是画家用圆画的,这里折成多边形)
-	var art := PokerFaceArt.layout(card)
-	var group: Array = art["center"].duplicate()
-	if not art["crown"].is_empty():
-		group.append(art["crown"])
-	for jewel in art["jewels"]:
-		group.append(_disc(jewel, PokerFaceArt.JEWEL_RADIUS))
-	return group
-
-
-func _disc(center: Vector2, radius: float) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	for i in DISC_SEGMENTS:
-		out.append(center + Vector2.from_angle(TAU * i / DISC_SEGMENTS) * radius)
-	return out
+func _centre(card: int) -> Array:
+	return PokerFaceArt.center_polygons(card)
 
 
 func _components(polys: Array) -> Array:
@@ -84,30 +68,33 @@ func _components(polys: Array) -> Array:
 	return groups
 
 
-func test_card_size_is_shared_with_poker_faces():
+func _distance(a: Color, b: Color) -> float:
+	return Vector3(a.r - b.r, a.g - b.g, a.b - b.b).length()
+
+
+func test_card_art_size_and_bake_size_keep_the_card_ratio():
 	assert_eq(PokerFaceArt.SIZE, Vector2i(256, 372))
-	assert_eq(PokerFaces.SIZE, PokerFaceArt.SIZE)
+	var bake := Vector2(PokerFaces.SIZE)
+	assert_almost_eq(bake.x / PokerFaceArt.SIZE.x, PokerFaces.BAKE_SCALE, 0.01, "烘焙是画面坐标整体放大")
+	assert_almost_eq(bake.y / PokerFaceArt.SIZE.y, PokerFaces.BAKE_SCALE, 0.01)
 
 
-func test_four_colour_suits_follow_the_spec():
+func test_four_colours_in_two_families():
 	var colors: Array = PokerFaceArt.SUIT_COLORS
 	assert_eq(colors.size(), 4)
-	assert_lt(colors[PokerCard.SPADES].get_luminance(), 0.1, "♠ 墨黑")
-	var heart: Color = colors[PokerCard.HEARTS]
-	assert_true(heart.r > 0.7 and heart.g < 0.2 and heart.b < 0.2, "♥ 红 %s" % heart)
-	for pair in [[PokerCard.DIAMONDS, SPEC_DIAMOND], [PokerCard.CLUBS, SPEC_CLUB]]:
-		var c: Color = colors[pair[0]]
-		var want: Color = pair[1]
-		assert_almost_eq(Vector3(c.r, c.g, c.b), Vector3(want.r, want.g, want.b), Vector3.ONE * COLOR_TOLERANCE,
-			PokerCard.SUIT_NAMES[pair[0]])
+	for suit in PokerCard.SUITS:
+		var c: Color = colors[suit]
+		if suit in PokerFaceArt.RED_SUITS:
+			assert_gt(c.r - maxf(c.g, c.b), 0.4, "%s 是红系 %s" % [PokerCard.SUIT_NAMES[suit], c])
+		else:
+			assert_lt(c.get_luminance(), 0.4, "%s 是深色系 %s" % [PokerCard.SUIT_NAMES[suit], c])
 	for i in 4:
 		for j in range(i + 1, 4):
-			var a: Color = colors[i]
-			var b: Color = colors[j]
-			assert_gt(Vector3(a.r - b.r, a.g - b.g, a.b - b.b).length(), 0.4, "花色 %d 与 %d 要一眼分清" % [i, j])
+			var same_family := (i in PokerFaceArt.RED_SUITS) == (j in PokerFaceArt.RED_SUITS)
+			assert_gt(_distance(colors[i], colors[j]), 0.2 if same_family else 0.4, "花色 %d 与 %d 要分得清" % [i, j])
 
 
-func test_rank_is_a_jumbo_index_in_the_top_left():
+func test_rank_is_a_big_chunky_index_in_the_top_left():
 	for rank in ALL_RANKS:
 		var bounds := _bounds(PokerFaceArt.rank_polygons(rank, PokerFaceArt.rank_box(rank)))
 		var share := bounds.size.y / PokerFaceArt.SIZE.y
@@ -138,39 +125,73 @@ func test_bottom_right_index_is_the_top_left_turned_half_way():
 			assert_eq(index[corner.size() + i], PokerFaceArt.half_turn(corner[i]))
 
 
-func test_centre_suit_and_crown_are_centred_on_the_card():
+func test_number_cards_show_as_many_pips_as_their_rank():
+	for suit in PokerCard.SUITS:
+		for rank in range(2, 11):
+			var art := PokerFaceArt.layout(PokerCard.make(rank, suit))
+			assert_eq(art["pips"].size(), rank, PokerCard.label(PokerCard.make(rank, suit)))
+			assert_true(art["panel"].is_empty())
+		var ace := PokerFaceArt.layout(PokerCard.make(PokerCard.ACE, suit))
+		assert_eq(ace["pips"].size(), 1, "A 一枚大花色")
+		assert_eq(ace["emblem"], suit == PokerCard.SPADES, "只有 ♠A 是大徽章")
+
+
+func test_lower_pips_are_turned_upside_down():
+	# 经典牌面:下半的花色倒过来(♥ 的尖朝上)
+	var art := PokerFaceArt.layout(PokerCard.make(2, PokerCard.HEARTS))
+	var top := _bounds(art["pips"][0])
+	var bottom := _bounds(art["pips"][1])
+	assert_lt(top.get_center().y, PokerFaceArt.CENTER.y)
+	assert_gt(bottom.get_center().y, PokerFaceArt.CENTER.y)
+	# ♥ 的尖在下:最低点在中线上;倒过来后最高点在中线上
+	var top_tip := Vector2.ZERO
+	for poly in art["pips"][0]:
+		for p in poly:
+			if p.y > top_tip.y:
+				top_tip = p
+	assert_almost_eq(top_tip.x, top.get_center().x, 1.0, "正着的 ♥ 尖朝下")
+	var bottom_tip := Vector2(0, INF)
+	for poly in art["pips"][1]:
+		for p in poly:
+			if p.y < bottom_tip.y:
+				bottom_tip = p
+	assert_almost_eq(bottom_tip.x, bottom.get_center().x, 1.0, "倒过来的 ♥ 尖朝上")
+
+
+func test_only_jack_queen_and_king_get_a_character_panel():
+	for card in _cards():
+		var rank := PokerCard.rank(card)
+		var court := rank in [PokerCard.JACK, PokerCard.QUEEN, PokerCard.KING]
+		var art := PokerFaceArt.layout(card)
+		assert_eq(not art["panel"].is_empty(), court, PokerCard.label(card))
+		if court:
+			assert_true(art["pips"].is_empty(), PokerCard.label(card))
+
+
+func test_centre_art_is_centred_on_the_card():
 	var middle := Vector2(PokerFaceArt.SIZE) / 2.0
 	for card in _cards():
-		var center := _bounds(_centre_group(card)).get_center()
+		var center := _bounds(_centre(card)).get_center()
 		assert_almost_eq(center.x, middle.x, 1.0, PokerCard.label(card))
 		assert_almost_eq(center.y, middle.y, 1.0, PokerCard.label(card))
 
 
-func test_only_jack_queen_and_king_wear_a_crown():
-	for card in _cards():
-		var rank := PokerCard.rank(card)
-		var art := PokerFaceArt.layout(card)
-		var crowned := rank in [PokerCard.JACK, PokerCard.QUEEN, PokerCard.KING]
-		assert_eq(not art["crown"].is_empty(), crowned, PokerCard.label(card))
-		assert_eq(art["jewels"].size(), PokerFaceArt.CROWN_POINTS.get(rank, 0), PokerCard.label(card))
-
-
-func test_everything_is_drawn_inside_the_gold_frame():
-	# 金边内沿:画家的金边内缩 + 线宽
+func test_everything_is_drawn_inside_the_frame():
+	# 内框内沿:画家的内框内缩 + 线宽
 	var inset := PokerFacePainter.FRAME_INSET + PokerFacePainter.FRAME_WIDTH
 	var interior := Rect2(Vector2.ONE * inset, Vector2(PokerFaceArt.SIZE) - Vector2.ONE * inset * 2.0)
 	for card in _cards():
-		var bounds := _bounds(_corner(card) + _turned(card) + _centre_group(card))
+		var bounds := _bounds(_corner(card) + _turned(card) + _centre(card))
 		assert_true(interior.encloses(bounds), "%s %s" % [PokerCard.label(card), bounds])
 
 
 func test_corners_and_centre_keep_paper_between_them_at_the_smallest_size():
-	# 至少留 MIN_CLEARANCE 宽的纸,缩到 30 像素宽时还有一个多像素的缝:否则角标、中央花色与冠饰粘成一团
+	# 至少留 MIN_CLEARANCE 宽的纸,缩到 30 像素宽时还有一个多像素的缝:否则角标与中央的花色、画框粘成一团
 	assert_gte(PokerFaceArt.MIN_CLEARANCE, PokerFaceArt.SIZE.x / SMALLEST_WIDTH)
 	for card in _cards():
 		var label := PokerCard.label(card)
-		assert_true(_keeps_clear(_corner(card), _centre_group(card), PokerFaceArt.MIN_CLEARANCE), "左上角标贴着中央 " + label)
-		assert_true(_keeps_clear(_turned(card), _centre_group(card), PokerFaceArt.MIN_CLEARANCE), "右下角标贴着中央 " + label)
+		assert_true(_keeps_clear(_corner(card), _centre(card), PokerFaceArt.MIN_CLEARANCE), "左上角标贴着中央 " + label)
+		assert_true(_keeps_clear(_turned(card), _centre(card), PokerFaceArt.MIN_CLEARANCE), "右下角标贴着中央 " + label)
 		assert_true(_keeps_clear(_corner(card), _turned(card), PokerFaceArt.MIN_CLEARANCE), "两个角标相碰 " + label)
 
 
@@ -192,8 +213,5 @@ func test_rank_strokes_leave_no_filled_holes():
 func test_every_polygon_can_be_triangulated():
 	for card in _cards():
 		var art := PokerFaceArt.layout(card)
-		var polys: Array = art["index"] + art["center"]
-		if not art["crown"].is_empty():
-			polys.append(art["crown"])
-		for poly in polys:
+		for poly in art["index"] + _centre(card):
 			assert_false(Geometry2D.triangulate_polygon(poly).is_empty(), PokerCard.label(card))

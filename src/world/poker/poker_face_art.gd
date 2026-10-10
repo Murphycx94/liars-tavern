@@ -1,43 +1,50 @@
 class_name PokerFaceArt
-# 德州牌面的矢量图形与排版(纯几何,单测覆盖)。坐标是牌面像素,y 向下。
-# 「超大角标」:点数约占牌高 38%,左上一个,右下一个(绕牌心转 180°),花色在点数下方;
-# 中央一个大花色,J/Q/K 在花色上方加冠饰。
+# 德州牌面的矢量图形与排版(纯几何,单测覆盖)。坐标是牌面像素(SIZE),y 向下;烘焙时整体放大到 PokerFaces.SIZE。
+# 动森式重画(2026-10-10):
+# - 角标:圆头粗笔画的点数(约占牌高 30%)+ 正下方一枚花色,左上一个、右下一个(绕牌心转 180°);
+# - 2–10:中间一条竖带里按经典排法摆点数个胖花色(下半的倒过来),两列 + 中列;
+# - A:中央一枚大花色(♠A 另画成带圆盘和笑脸的大徽章,见 PokerFacePainter);
+# - J/Q/K:中间一块竖长的圆角画框(PANEL),里面是角色插画(狐狸侍从、猫皇后、熊国王,画家画)。
 # 点数是粗笔画、花色是多边形与圆拼成的,都不依赖字体:界面字体里没有花色字形,
 # 系统字体各平台也不一样,自己画才能保证每台机器上缩到 30×42 像素都认得出。
 
 
 const SIZE := Vector2i(256, 372)
 
-# 四色牌:暖光与牌面着色器(会压暗)下也要一眼分清,下标即 PokerCard 的花色
+# 四色牌,两个色系:红色系 ♥ 暖莓红、♦ 珊瑚橘;深色系 ♠ 软藏青墨、♣ 深青墨。
+# 跨色系一眼分清(色差 ≥ 0.4),同色系里靠色相再分开(≥ 0.2)与花色形状。下标即 PokerCard 的花色
 const SUIT_COLORS := [
-	Color(0.07, 0.06, 0.06),   # ♠ 墨黑
-	Color(0.80, 0.07, 0.09),   # ♥ 红
-	Color(0.20, 0.45, 0.95),   # ♦ 亮蓝
-	Color(0.15, 0.60, 0.25),   # ♣ 亮绿
+	Color(0.2, 0.22, 0.42),    # ♠ 软藏青墨
+	Color(0.86, 0.26, 0.4),    # ♥ 暖莓红
+	Color(0.96, 0.5, 0.3),     # ♦ 珊瑚橘
+	Color(0.12, 0.46, 0.44),   # ♣ 深青墨
 ]
+const RED_SUITS := [PokerCard.HEARTS, PokerCard.DIAMONDS]
 
 # —— 角标 ——
-# 两个角标各占一侧,中央花色夹在中间:点数框右下角(2 的底横、A 与 K 的右腿、Q 的尾巴)和「10」的「0」
-# 离中央花色最近,宽度与中央花色的大小一起定,保证留得出 MIN_CLEARANCE 的纸缝
-const RANK_HEIGHT := 140.0                # 约占牌高 38%:缩到 30×42 像素时仍有约 16 像素高
-const RANK_WIDTH := 74.0                  # 窄体
-const TEN_WIDTH := 88.0                   # 「10」两个字并排,比单字宽
-const STROKE := 21.0                      # 笔画粗细:缩到 30×42 时仍有两个多像素
-const TEN_STROKE := 18.0                  # 「10」挤在一格里:笔画稍细,两字之间与「0」的空心才留得出来
+const RANK_HEIGHT := 112.0                # 约占牌高 30%:缩到 30×42 像素时仍有约 13 像素高
+const RANK_WIDTH := 60.0
+const TEN_WIDTH := 66.0                   # 「10」两个字并排,比单字宽
+const STROKE := 18.0                      # 笔画粗细:缩到 30×42 时仍有约两个像素
+const TEN_STROKE := 13.0                  # 「10」挤在一格里:笔画稍细,两字之间与「0」的空心才留得出来
 const TEN_ONE_X := 0.13                   # 「1」的竖笔位置(单位框):左边留给短旗
-const TEN_ZERO_HALF_WIDTH := 0.23         # 「0」的半宽(单位框)
-const INDEX_ORIGIN := Vector2(12, 12)     # 左上角标点数框的左上角
-const INDEX_SUIT_HEIGHT := 46.0
-const INDEX_SUIT_GAP := 11.0              # 点数与下方花色的间距:角标花色正好与中央花色在同一条水平线上
+const TEN_ZERO_HALF_WIDTH := 0.2          # 「0」的半宽(单位框):窄一点,和「1」之间才留得出缝
+const INDEX_ORIGIN := Vector2(13, 14)     # 左上角标点数框的左上角
+const INDEX_SUIT_HEIGHT := 36.0
+const INDEX_SUIT_GAP := 8.0
 # —— 中央 ——
-const CENTER_SUIT_HEIGHT := 76.0
-const FACE_SUIT_HEIGHT := 64.0            # J/Q/K 的花色缩小,让出冠饰的位置
-const CROWN_SIZE := Vector2(56, 30)
-const CROWN_GAP := 6.0
-const CROWN_POINTS := {PokerCard.JACK: 4, PokerCard.QUEEN: 5, PokerCard.KING: 3}
-const JEWEL_RADIUS := 4.5
+const CENTER := Vector2(128, 186)         # 牌心
+const PIP_ROW := 112.0                    # 点数排法的上下半幅:最上 / 最下一排离牌心这么远
+const PIP_COLUMN := 24.0                  # 两列离中线这么远
+const PIP_COLUMN_TIGHT := 22.0            # 9、10 的花色小一号,两列往里收,给更宽的「10」角标让出纸缝(中列错开半行插在中间)
+const PIP_HEIGHTS := {2: 38.0, 3: 38.0, 4: 38.0, 5: 38.0, 6: 38.0, 7: 34.0, 8: 34.0, 9: 28.0, 10: 28.0}
+const ACE_HEIGHT := 86.0
+const ACE_SPADE_HEIGHT := 108.0           # ♠A 的大徽章
+const PANEL := Rect2(84, 40, 88, 292)     # J/Q/K 的角色画框
+const PANEL_RADIUS := 30.0
+const COURT := [PokerCard.JACK, PokerCard.QUEEN, PokerCard.KING]
 
-# 角标、中央花色与冠饰之间至少留这么宽的纸:缩到 30×42 像素(约 1/8.5)时还有一个多像素的缝,不粘成一团
+# 角标与中央之间至少留这么宽的纸:缩到 30×42 像素(约 1/8.5)时还有一个多像素的缝,不粘成一团
 const MIN_CLEARANCE := 10.0
 
 const ARC_STEP := 0.12                    # 弧线每段约 7°:放大到 140 像素也看不出折线
@@ -49,19 +56,32 @@ const DIAMOND_PINCH := 0.16               # 方块四边向中心收的比例:�
 # —— 整张牌 ——
 
 static func layout(card: int) -> Dictionary:
-	# {"ink": 花色色, "index": 两个角标的多边形, "center": 中央花色, "crown": 冠饰轮廓(非 J/Q/K 为空), "jewels": 冠饰宝石圆心}
+	# {"ink": 花色色, "index": 两个角标的多边形, "pips": 中央花色(每枚一组多边形), "panel": J/Q/K 的画框轮廓(其余为空),
+	#  "emblem": 是否 ♠A 大徽章}
 	var rank := PokerCard.rank(card)
 	var suit := PokerCard.suit(card)
 	var corner := index_polygons(rank, suit)
 	var index: Array[PackedVector2Array] = corner.duplicate()
 	for poly in corner:
 		index.append(half_turn(poly))
-	var art := {"ink": SUIT_COLORS[suit], "index": index, "center": center_polygons(rank, suit),
-		"crown": PackedVector2Array(), "jewels": PackedVector2Array()}
-	if CROWN_POINTS.has(rank):
-		art["crown"] = crown_polygon(crown_rect(), CROWN_POINTS[rank])
-		art["jewels"] = crown_jewels(crown_rect(), CROWN_POINTS[rank])
+	var art := {"ink": SUIT_COLORS[suit], "index": index, "pips": [], "panel": PackedVector2Array(),
+		"emblem": rank == PokerCard.ACE and suit == PokerCard.SPADES}
+	if rank in COURT:
+		art["panel"] = rounded_rect(PANEL, PANEL_RADIUS)
+	else:
+		art["pips"] = pip_polygons(rank, suit)
 	return art
+
+
+static func center_polygons(card: int) -> Array[PackedVector2Array]:
+	# 中央部分的全部多边形(画框或所有花色摊平),测试量间距与边界用
+	var art := layout(card)
+	var out: Array[PackedVector2Array] = []
+	if not art["panel"].is_empty():
+		out.append(art["panel"])
+	for pip in art["pips"]:
+		out.append_array(pip)
+	return out
 
 
 static func index_polygons(rank: int, suit: int) -> Array[PackedVector2Array]:
@@ -77,23 +97,54 @@ static func rank_box(rank: int) -> Rect2:
 	return Rect2(INDEX_ORIGIN, Vector2(TEN_WIDTH if rank == 10 else RANK_WIDTH, RANK_HEIGHT))
 
 
-static func center_polygons(rank: int, suit: int) -> Array[PackedVector2Array]:
-	var mid := Vector2(SIZE) / 2.0
-	if not CROWN_POINTS.has(rank):
-		return suit_polygons(suit, mid, CENTER_SUIT_HEIGHT)
-	# 冠饰与花色作为一组在牌心居中
-	var bottom := mid.y + _crowned_group_height() / 2.0
-	return suit_polygons(suit, Vector2(mid.x, bottom - FACE_SUIT_HEIGHT / 2.0), FACE_SUIT_HEIGHT)
+static func pip_slots(rank: int) -> Array[Vector2]:
+	# 经典排法,单位坐标:x ∈ {-1, 0, 1}(两列与中列),y ∈ [-1, 1](最上到最下);A 只有牌心一枚
+	var third := 1.0 / 3.0
+	match rank:
+		2:
+			return [Vector2(0, -1), Vector2(0, 1)]
+		3:
+			return [Vector2(0, -1), Vector2(0, 0), Vector2(0, 1)]
+		4:
+			return [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]
+		5:
+			return [Vector2(-1, -1), Vector2(1, -1), Vector2(0, 0), Vector2(-1, 1), Vector2(1, 1)]
+		6:
+			return [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 0), Vector2(1, 0), Vector2(-1, 1), Vector2(1, 1)]
+		7:
+			return [Vector2(-1, -1), Vector2(1, -1), Vector2(0, -0.5), Vector2(-1, 0), Vector2(1, 0),
+				Vector2(-1, 1), Vector2(1, 1)]
+		8:
+			return [Vector2(-1, -1), Vector2(1, -1), Vector2(0, -0.5), Vector2(-1, 0), Vector2(1, 0),
+				Vector2(0, 0.5), Vector2(-1, 1), Vector2(1, 1)]
+		9:
+			return [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, -third), Vector2(1, -third), Vector2(0, 0),
+				Vector2(-1, third), Vector2(1, third), Vector2(-1, 1), Vector2(1, 1)]
+		10:
+			return [Vector2(-1, -1), Vector2(1, -1), Vector2(0, -2.0 * third), Vector2(-1, -third), Vector2(1, -third),
+				Vector2(-1, third), Vector2(1, third), Vector2(0, 2.0 * third), Vector2(-1, 1), Vector2(1, 1)]
+	return [Vector2.ZERO]
 
 
-static func crown_rect() -> Rect2:
-	var mid := Vector2(SIZE) / 2.0
-	var top := mid.y - _crowned_group_height() / 2.0
-	return Rect2(Vector2(mid.x - CROWN_SIZE.x / 2.0, top), CROWN_SIZE)
+static func pip_height(rank: int, suit := -1) -> float:
+	if rank == PokerCard.ACE:
+		return ACE_SPADE_HEIGHT if suit == PokerCard.SPADES else ACE_HEIGHT
+	return PIP_HEIGHTS.get(rank, ACE_HEIGHT)
 
 
-static func _crowned_group_height() -> float:
-	return CROWN_SIZE.y + CROWN_GAP + FACE_SUIT_HEIGHT
+static func pip_polygons(rank: int, suit: int) -> Array:
+	# 每枚花色一组多边形;下半的倒过来(绕自己的中心转 180°),和真牌一样
+	var height := pip_height(rank, suit)
+	var column := PIP_COLUMN_TIGHT if rank >= 9 and rank <= 10 else PIP_COLUMN
+	var out := []
+	for slot in pip_slots(rank):
+		var at := CENTER + Vector2(slot.x * column, slot.y * PIP_ROW)
+		var parts := suit_polygons(suit, at, height)
+		if slot.y > 0.01:
+			for k in parts.size():
+				parts[k] = _turn_about(parts[k], at)
+		out.append(parts)
+	return out
 
 
 static func half_turn(poly: PackedVector2Array) -> PackedVector2Array:
@@ -104,28 +155,22 @@ static func half_turn(poly: PackedVector2Array) -> PackedVector2Array:
 	return out
 
 
-# —— 冠饰 ——
-
-static func crown_polygon(rect: Rect2, points: int) -> PackedVector2Array:
-	# 底边平直、points 个尖角(与 CardFaces 的冠饰同一画法);尖角留出宝石的半径,宝石不出框
-	var w := rect.size.x
-	var base := Vector2(rect.position.x, rect.end.y)
-	var peak_h := rect.size.y - JEWEL_RADIUS
-	var poly := PackedVector2Array([base])
-	for i in points:
-		var x := w * (i + 0.5) / points
-		poly.append(base + Vector2(x - w / points * 0.5, -peak_h * 0.45))
-		poly.append(base + Vector2(x, -peak_h))
-	poly.append(base + Vector2(w, -peak_h * 0.45))
-	poly.append(base + Vector2(w, 0))
-	return poly
-
-
-static func crown_jewels(rect: Rect2, points: int) -> PackedVector2Array:
+static func _turn_about(poly: PackedVector2Array, at: Vector2) -> PackedVector2Array:
 	var out := PackedVector2Array()
-	for i in points:
-		out.append(Vector2(rect.position.x + rect.size.x * (i + 0.5) / points, rect.position.y + JEWEL_RADIUS))
+	for p in poly:
+		out.append(at * 2.0 - p)
 	return out
+
+
+static func rounded_rect(rect: Rect2, radius: float) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var corners := [Vector2(rect.end.x - radius, rect.position.y + radius), Vector2(rect.end.x - radius, rect.end.y - radius),
+		Vector2(rect.position.x + radius, rect.end.y - radius), Vector2(rect.position.x + radius, rect.position.y + radius)]
+	for c in 4:
+		for k in 9:
+			var a := -PI / 2 + c * PI / 2 + PI / 2 * k / 8.0
+			pts.append(corners[c] + Vector2(cos(a), sin(a)) * radius)
+	return pts
 
 
 # —— 点数 ——

@@ -15,13 +15,17 @@ const POKER_TABLE_RADIUS := 1.45
 const SEAT_GAP := SEAT_RADIUS - TABLE_RADIUS
 # 炸弹猫最多 6 人:到这个人数换德州那张大桌(4 人以内用骗子酒馆的桌子)
 const BOMB_CAT_BIG_TABLE_FROM := 5
+# 吹牛骰子同样最多 6 人、同样的换桌规则
+const LIARS_DICE_BIG_TABLE_FROM := 5
 
 
 static func table_radius_for(mode: String, players := 0) -> float:
-	# players:本局人数(炸弹猫按它选桌;不知道时传 0,用小桌,如等待厅与主菜单)
+	# players:本局人数(炸弹猫与吹牛骰子按它选桌;不知道时传 0,用小桌,如等待厅与主菜单)
 	if GameMode.is_poker(mode):
 		return POKER_TABLE_RADIUS
 	if GameMode.is_bomb_cat(mode) and players >= BOMB_CAT_BIG_TABLE_FROM:
+		return POKER_TABLE_RADIUS
+	if GameMode.is_liars_dice(mode) and players >= LIARS_DICE_BIG_TABLE_FROM:
 		return POKER_TABLE_RADIUS
 	return TABLE_RADIUS
 

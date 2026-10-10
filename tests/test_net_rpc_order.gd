@@ -71,8 +71,9 @@ func test_join_request_still_takes_two_arguments():
 	assert_eq(_args("rpc_join_request").size(), 2, "rpc_join_request(pname, version)")
 
 
-func test_protocol_is_v8():
+func test_protocol_is_v9():
 	# 德州单独随 0.7.0 用 v5 发布了;自选形象、丢番茄与快捷语、炸弹猫随 0.8.0 升到 v6;上游的九宫格快捷对话
 	# (rpc_quip / rpc_quip_shown)也用了 v6,两个 v6 的 RPC 表不同。合在一起升 v7(握手仍能告诉旧客户端「版本不匹配」)
-	# 再之后德州加了「开始下一手」与牌局记录(意图 next、事件 next_ready / hand_record),升到 v8
-	assert_eq(Protocol.VERSION, 8)
+	# 再之后德州加了「开始下一手」与牌局记录(意图 next、事件 next_ready / hand_record),升到 v8(0.9.1);
+	# 新玩法吹牛骰子与斗地主的 id 旧版本不认识(RPC 表没变,吹牛骰子走现有的 rpc_session_intent),升到 v9
+	assert_eq(Protocol.VERSION, 9)

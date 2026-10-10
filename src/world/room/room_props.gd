@@ -1,6 +1,6 @@
 class_name RoomProps
 # 房间陈设:四面墙的墙饰(8 张通缉令、3 幅鎏金框画、摆钟与钟摆、马蹄铁、套索、「不许出老千」告示)、
-# 钢琴与琴凳、衣帽架、角落杂物(共享车削木桶 + 桶箍、货箱、麻袋、小酒桶架)、两块纳瓦霍地毯、接地贴花、黄铜蜡烛壁灯,
+# 钢琴与琴凳、衣帽架、角落杂物(共享车削木桶 + 桶箍、货箱、麻袋、小酒桶架)、三块动森式毛绒地毯、接地贴花、黄铜蜡烛壁灯,
 # 以及氛围(暖色 LUT、分层体积雾)。墙饰与地毯、外景都用 decor 材质;布景件一律不投影。
 
 
@@ -35,7 +35,11 @@ static func build(tavern: Node3D) -> Array:
 	RoomKit.add(tavern, "CoatRack", "coat_rack", _coat_rack_recipe, {&"wood": WorldMaterials.wood("dark", true),
 		&"prop": WorldMaterials.prop()}, MeshKit.LAYER_SCENERY, false)
 	_clutter(tavern)
-	RoomKit.add(tavern, "Rugs", "rugs", _rugs_recipe, {&"main": WorldMaterials.decor()}, MeshKit.LAYER_SCENERY, false)
+	var rugs := RoomKit.add(tavern, "Rugs", "rugs", _rugs_recipe, {&"main": WorldMaterials.decor()}, MeshKit.LAYER_SCENERY, false)
+	# 主毯在着色器里随牌桌放大:包围盒按最大的桌子留足,免得大桌时被视锥剔掉
+	var big := RoomLayout.RUG_MAIN_RADIUS * RoomLayout.main_rug_scale(SeatLayout.POKER_TABLE_RADIUS)
+	rugs.custom_aabb = rugs.mesh.get_aabb().merge(AABB(Vector3(-big, 0.0, -big), Vector3(big * 2.0, 0.05, big * 2.0)))
+	fit_rug(SeatLayout.TABLE_RADIUS)
 	_decals(tavern)
 	return _sconces(tavern)
 
@@ -461,18 +465,104 @@ static func _clutter_recipe(f: MeshForge) -> void:
 
 # —— 地毯、贴花 ——
 
+static func fit_rug(table_radius: float) -> void:
+	# 主毯随牌桌放大 / 复原(Tavern.set_table_radius 调用):decor 材质只有一份,改它的 rug_scale 就行
+	WorldMaterials.decor().set_shader_parameter("rug_scale", RoomLayout.main_rug_scale(table_radius))
+
+
 static func _rugs_recipe(f: MeshForge) -> void:
+	# 三块地毯合成一个网格。UV = 相对毯心的米制坐标 (x, z),图案全在 decor 模式 3 里程序绘制(与分辨率无关,近看也清楚)
 	for i in RoomLayout.RUGS.size():
 		var rug: Array = RoomLayout.RUGS[i]
 		var center: Vector2 = rug[0]
-		var across: float = rug[1]
-		var along: float = rug[2]
-		var fringe := RoomLayout.FRINGE
+		var half := Vector2(rug[1], rug[2]) / 2.0
 		RoomKit.decor_paint(f, 3, float(i))
-		var basis := Basis(Vector3(0, 0, -1), Vector3(-1, 0, 0), Vector3(0, 1, 0)) if rug[3] == "x" \
-			else Basis(Vector3(1, 0, 0), Vector3(0, 0, -1), Vector3(0, 1, 0))
-		f.quad(Vector2(across, along + fringe * 2.0), Rect2(0.0, -fringe, across, along + fringe * 2.0),
-			Transform3D(basis, Vector3(center.x, 0.004 + i * 0.0005, center.y)))
+		if rug[3] == "runner":
+			_runner_rug(f, center, half)
+		else:
+			_round_rug(f, center, half, RoomLayout.rug_edge(rug), 96 if rug[3] == "main" else 48)
+
+
+# 毛绒包边截面:(离外沿向里的距离 / 包边宽, 高度 m);外沿贴地,鼓起 1.9 cm,向里落回毯面
+const RUG_RIM_PROFILE := [Vector2(0.0, 0.002), Vector2(0.12, 0.010), Vector2(0.3, 0.017), Vector2(0.55, 0.019),
+	Vector2(0.8, 0.015), Vector2(1.0, 0.008)]
+const RUG_FLOOR_Y := 0.008       # 毯面高度
+
+
+static func _round_rug(f: MeshForge, center: Vector2, half: Vector2, rim: float, segs: int) -> void:
+	# 椭圆毯:中间一片扇形面 + 一圈凸起的毛绒包边(按截面放样,法线随截面弯下去,外沿自然落进阴影里)
+	var points := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var rings := RUG_RIM_PROFILE.size()
+	# 截面各点的外法线(相邻两段斜率平均),(朝外分量, 朝上分量)
+	var prof_n: Array[Vector2] = []
+	for k in rings:
+		var a: Vector2 = RUG_RIM_PROFILE[maxi(k - 1, 0)]
+		var b: Vector2 = RUG_RIM_PROFILE[mini(k + 1, rings - 1)]
+		var slope := (b.y - a.y) / ((b.x - a.x) * rim)   # 向里每米升高多少
+		prof_n.append(Vector2(slope, 1.0).normalized())
+	for j in segs:
+		var t := TAU * j / segs
+		var edge := Vector2(cos(t) * half.x, sin(t) * half.y)
+		var out_n := Vector2(cos(t) / half.x, sin(t) / half.y).normalized()   # 椭圆外法线
+		for k in rings:
+			var pr: Vector2 = RUG_RIM_PROFILE[k]
+			var q := edge - out_n * pr.x * rim
+			points.append(Vector3(center.x + q.x, pr.y, center.y + q.y))
+			var n: Vector2 = prof_n[k]
+			normals.append(Vector3(out_n.x * n.x, n.y, out_n.y * n.x).normalized())
+			uvs.append(q)
+	for j in segs:
+		var a := j * rings
+		var b := ((j + 1) % segs) * rings
+		for k in rings - 1:
+			indices.append_array([a + k, b + k, a + k + 1, a + k + 1, b + k, b + k + 1])
+	# 毯面:圆心一个点,扇形连到包边内沿(绕序:从上往下看顺时针为正面——decor 双面渲染,背面法线会被翻过去)
+	var hub := points.size()
+	points.append(Vector3(center.x, RUG_FLOOR_Y, center.y))
+	normals.append(Vector3.UP)
+	uvs.append(Vector2.ZERO)
+	for j in segs:
+		indices.append_array([hub, j * rings + rings - 1, ((j + 1) % segs) * rings + rings - 1])
+	f.raw(points, normals, uvs, indices)
+
+
+static func _runner_rug(f: MeshForge, center: Vector2, half: Vector2) -> void:
+	# 圆角长条毯(纵向沿 z)+ 两端流苏条;平铺,包边与条纹在着色器里画
+	var outline := RoomKit.round_rect(half.x * 2.0, half.y * 2.0, RoomLayout.RUG_CORNER, 4)
+	var points := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var y := RUG_FLOOR_Y * 0.6
+	points.append(Vector3(center.x, y, center.y))
+	normals.append(Vector3.UP)
+	uvs.append(Vector2.ZERO)
+	for p in outline:
+		points.append(Vector3(center.x + p.x, y, center.y + p.y))
+		normals.append(Vector3.UP)
+		uvs.append(p)
+	var n := outline.size()
+	for k in n:
+		indices.append_array([0, 1 + k, 1 + (k + 1) % n])
+	# 流苏条:两端直边外各一条(避开圆角)
+	var fringe := RoomLayout.FRINGE
+	var w := half.x - RoomLayout.RUG_CORNER
+	for side in [-1.0, 1.0]:
+		var base := points.size()
+		for c in [Vector2(-w, half.y), Vector2(w, half.y), Vector2(-w, half.y + fringe), Vector2(w, half.y + fringe)]:
+			var q := Vector2(c.x, c.y * side)
+			points.append(Vector3(center.x + q.x, y, center.y + q.y))
+			normals.append(Vector3.UP)
+			uvs.append(q)
+		# 绕序:从上往下看顺时针为正面(另一端镜像,绕序反过来)
+		if side > 0.0:
+			indices.append_array([base, base + 1, base + 2, base + 1, base + 3, base + 2])
+		else:
+			indices.append_array([base, base + 2, base + 1, base + 1, base + 2, base + 3])
+	f.raw(points, normals, uvs, indices)
 
 
 static func _decals(tavern: Node3D) -> void:

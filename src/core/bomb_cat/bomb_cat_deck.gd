@@ -5,18 +5,19 @@ class_name BombCatDeck
 
 const MIN_PLAYERS := 2
 const MAX_PLAYERS := 6
-const HAND_SIZE := 7            # 先发 7 张,再每人补 1 张拆弹(开局手牌 8 张)
+const HAND_SIZE := 4            # 先发 4 张,再每人补 1 张拆弹(开局手牌 5 张;原 7+1 太多,手牌条挤、一局拖长)
 
 # 功能牌数量(不含炸弹和拆弹):[2–3 人, 4–5 人, 6 人];零食每种各这么多张
+# (2026-10-10 减量约四分之一:3 人局 48 → 36 张,6 人局 71 → 58 张;炸弹与拆弹的规则不变)
 const ACTION_COUNTS := {
-	BombCatCard.SKIP: [4, 5, 6],
-	BombCatCard.PASS_TURNS: [3, 4, 5],
-	BombCatCard.PEEK: [4, 5, 6],
-	BombCatCard.SHUFFLE: [3, 4, 5],
-	BombCatCard.BEG: [3, 4, 4],
-	BombCatCard.NOPE: [4, 5, 6],
+	BombCatCard.SKIP: [3, 4, 5],
+	BombCatCard.PASS_TURNS: [2, 3, 4],
+	BombCatCard.PEEK: [3, 4, 5],
+	BombCatCard.SHUFFLE: [2, 3, 4],
+	BombCatCard.BEG: [2, 3, 3],
+	BombCatCard.NOPE: [3, 4, 5],
 }
-const SNACK_COUNT := [4, 4, 5]
+const SNACK_COUNT := [3, 3, 4]
 
 
 static func is_valid_count(n: int) -> bool:
@@ -77,7 +78,7 @@ static func shuffle(cards: Array, rng: RandomNumberGenerator) -> void:
 
 static func deal(pids: Array, rng: RandomNumberGenerator) -> Dictionary:
 	# 返回 {"hands": {pid: [牌 id...]}, "deck": [牌 id...](下标 0 = 顶)}。
-	# 功能牌洗匀 → 按座次每人发 7 张 → 每人 1 张拆弹 → 剩余拆弹与 n − 1 张炸弹混回 → 再洗
+	# 功能牌洗匀 → 按座次每人发 HAND_SIZE 张 → 每人 1 张拆弹 → 剩余拆弹与 n − 1 张炸弹混回 → 再洗
 	var n := pids.size()
 	var pile := action_pile(n)
 	shuffle(pile, rng)

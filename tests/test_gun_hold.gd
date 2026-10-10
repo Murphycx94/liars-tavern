@@ -6,7 +6,7 @@ extends GutTest
 const FAST_CLOCK := 8.0
 const RAISE_SETTLE := 0.5    # 举枪结束后再等的游戏秒(头回正、坐直的插值)
 const DRIFT_WINDOW := 1.5    # 之后观察头心漂移的时长
-const BARREL_RADIUS := 0.0128   # 枪管半径(B 路的玩具感左轮加粗了枪管,原 0.0105):沿枪管表面上下左右取样
+const BARREL_RADIUS := RevolverModel.BARREL_RADIUS   # 枪管半径(玩具感左轮一路加粗:0.0105 → 0.0128 → 0.0142):沿枪管表面上下左右取样
 
 
 func after_each():

@@ -7,7 +7,7 @@ class_name BuildInfo
 const PATH := "res://build.json"
 # 互联网更新源:按平台分目录放 manifest.json / manifest.sig / pck 的静态网址(以 / 结尾);留空 = 只走局域网更新。
 # 现在是 GitHub 仓库的 updates 分支(tools/publish_update.sh 推送),经 raw.githubusercontent.com 直接读取、不跳转
-const FEED_URL := "https://raw.githubusercontent.com/Murphycx94/liars-tavern/updates/"
+const FEED_URL := "https://raw.githubusercontent.com/BoAsir/liars-tavern/updates/"
 
 static var _cache := {}
 

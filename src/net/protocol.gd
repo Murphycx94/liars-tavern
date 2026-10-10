@@ -11,8 +11,10 @@ class_name Protocol
 #     注意:上面两个 v6 是两条分支各自升的,RPC 表不一样(一个有 rpc_lobby_species / rpc_session_intent / Banter,
 #     一个有 rpc_quip / rpc_quip_shown),版本号相同却互不兼容,绝不能让它们同桌
 # v7:两边合到一起(形象 + 丢番茄快捷语 + 炸弹猫 + 九宫格快捷对话);升一号让两种 v6 客户端都收到「版本不匹配」
-# v8:德州「开始下一手」(意图 next、事件 next_ready)与牌局记录(hand_record);旧版没有开始按钮,不能同桌
-const VERSION := 8
+# v8:德州「开始下一手」(意图 next、事件 next_ready)与牌局记录(hand_record);旧版没有开始按钮,不能同桌。随 0.9.1 发布
+# v9:新玩法吹牛骰子(liars_dice)与斗地主(dou_dizhu):旧版本不认识这两个玩法 id(会按骗子酒馆摆桌),不能同桌。
+#     设计稿原定「升到 v8」,但 v8 已被 0.9.1 用掉,所以是 v9;只由吹牛骰子的阶段一升,斗地主分支不再另升
+const VERSION := 9
 
 # 发现端口段:同机多开时每个实例各绑定其中一个空闲端口,房主对每个端口都广播一份
 const DISCOVERY_PORT := 47800

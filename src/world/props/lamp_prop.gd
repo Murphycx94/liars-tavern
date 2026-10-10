@@ -1,5 +1,5 @@
 class_name LampProp
-# 牌桌上方的吊灯:黄铜吊顶碗、链条(MultiMesh,一次 draw)、颈箍、钟形双层灯罩(外壁柔红珐琅、内壁奶油色微微自发光)、
+# 牌桌上方的吊灯:黄铜吊顶碗、柔黄铜链条(MultiMesh,一次 draw)、颈箍、蘑菇帽式双层灯罩(外壁柔红珐琅带奶油波点、内壁奶油色微微自发光)、
 # 罩口黄铜珠边、灯泡(自发光的球)。全部挂在 LampPivot 下(开枪踢灯时整盏摆动);灯罩与链条都不投影。
 # 两盏灯(投影的聚光与补光)是 LampPivot 的直接子节点:性能探针按这个名字找灯。
 
@@ -16,6 +16,8 @@ const SOFT_EDGE_DEG := 2.5      # 再加一点半影
 const LINK_PITCH := 0.03
 const CANOPY_DEPTH := 0.03
 const COLLAR_TOP := -1.27
+const DOT_ROWS := [Vector2(0.13, 12), Vector2(0.38, 9)]   # 波点:(从罩口沿外壁的弧长比例, 个数);偏下两圈,座位机位看得到
+const DOT_RADIUS := 0.028
 
 
 static func build(parent: Node3D, top: float, flickers: Array) -> Node3D:
@@ -81,12 +83,29 @@ static func _p(f: MeshForge, entry: String) -> void:
 static func shade_profile() -> PackedVector2Array:
 	# 钟形罩外壁 (r, y),自罩口往上到颈部
 	# 更饱满的圆顶钟形(卡通)
-	var radii := [MOUTH_RADIUS, 0.353, 0.326, 0.272, 0.205, 0.145, 0.102, 0.076, 0.064]
+	# 二次打磨(2026-10-10):肩部更鼓的圆顶,像一顶胖胖的蘑菇帽
+	var radii := [MOUTH_RADIUS, 0.357, 0.338, 0.294, 0.230, 0.164, 0.112, 0.080, 0.064]
 	var heights := [0.0, 0.07, 0.22, 0.41, 0.59, 0.75, 0.88, 0.95, 1.0]   # 罩口到颈部的比例
 	var out := PackedVector2Array()
 	for k in radii.size():
 		out.append(Vector2(radii[k], lerpf(MOUTH_Y, -DROP, heights[k])))
 	return out
+
+
+static func _on_profile(profile: PackedVector2Array, t: float) -> Array:
+	# 外壁轮廓上按弧长比例 t 取点:[点 (r, y), 外法线 (r, y)]
+	var total := 0.0
+	for k in profile.size() - 1:
+		total += profile[k].distance_to(profile[k + 1])
+	var want := total * t
+	for k in profile.size() - 1:
+		var seg := profile[k].distance_to(profile[k + 1])
+		if want <= seg or k == profile.size() - 2:
+			var d := (profile[k + 1] - profile[k]).normalized()
+			# 轮廓自下而上、半径收小:方向转 −90° 就是朝外朝上的法线
+			return [profile[k].lerp(profile[k + 1], clampf(want / seg, 0.0, 1.0)), Vector2(d.y, -d.x)]
+		want -= seg
+	return [profile[0], Vector2(1, 0)]
 
 
 static func lamp_recipe(f: MeshForge) -> void:
@@ -100,6 +119,22 @@ static func lamp_recipe(f: MeshForge) -> void:
 	var outer := shade_profile()
 	_p(f, "enamel_red")
 	f.lathe(outer, 48)
+	# 外壁两圈奶油色圆点(交错排开,半嵌在罩面里的扁圆片):动森小店里那种波点灯罩
+	_p(f, "candy_cream")
+	var dot := PackedVector2Array([Vector2(DOT_RADIUS, -0.002), Vector2(DOT_RADIUS * 0.9, 0.0018), Vector2(DOT_RADIUS * 0.55, 0.0036),
+		Vector2(0.0, 0.0042)])
+	for row in DOT_ROWS.size():
+		var spec: Vector2 = DOT_ROWS[row]
+		var at := _on_profile(outer, spec.x)
+		var at_point: Vector2 = at[0]
+		var at_normal: Vector2 = at[1]
+		for k in int(spec.y):
+			var a := TAU * (k + 0.5 * row) / spec.y
+			var dir := Vector3(sin(a), 0, cos(a))
+			var normal := (dir * at_normal.x + Vector3(0, at_normal.y, 0)).normalized()
+			# 车削的小圆顶(轴 +Y 转到罩面法线),底边埋进罩壁 2 mm
+			var basis := Basis.looking_at(-normal, Vector3.UP) * Basis(Vector3.RIGHT, PI / 2.0)
+			f.lathe(dot, 12, PackedInt32Array(), Transform3D(basis, dir * at_point.x + Vector3(0, at_point.y, 0)))
 	var inner := PackedVector2Array()
 	for k in range(outer.size() - 1, -1, -1):
 		inner.append(outer[k] + Vector2(-0.003, 0.002 if k > 0 else 0.003))
@@ -121,9 +156,10 @@ static func lamp_recipe(f: MeshForge) -> void:
 static func link_recipe(f: MeshForge) -> void:
 	# 椭圆链节:竖着的扁环(4 边截面,约 90 面);相邻两节在 build 里转 90°
 	f.surface(&"metal")
-	_p(f, "iron")
+	# 缎面柔黄铜的胖链节(原来是深靛铁链):更圆、更粗一点
+	_p(f, "brass_soft")
 	var path := PackedVector3Array()
 	for k in 11:
 		var a := TAU * k / 10.0
-		path.append(Vector3(sin(a) * 0.0095, cos(a) * 0.0175, 0))
-	f.tube(path, 0.0034, 5)
+		path.append(Vector3(sin(a) * 0.0105, cos(a) * 0.0170, 0))
+	f.tube(path, 0.0038, 5)

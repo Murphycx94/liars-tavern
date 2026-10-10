@@ -68,6 +68,9 @@ func _build_stand() -> void:
 	_target_card.transform = Transform3D(FAN_BASIS, Vector3(0, _card_center_y(1.0), 0))
 	_spinner.add_child(_target_card)
 	_target_card.set_both_faces(CardFaces.BACK)
+	# 穿模防护:探头的头绕着立牌走(立牌收起来时自动忽略)
+	world.clip_guard.set_prop(&"target_stand", ClipGuard.circle(Vector3.ZERO, ClipGuard.STAND_RADIUS,
+		SeatLayout.TABLE_TOP + _card_center_y(1.25) + Card3D.HEIGHT * 1.25 / 2.0, ClipGuard.BLOCK, _stand))
 
 
 static func _card_center_y(height_scale: float) -> float:

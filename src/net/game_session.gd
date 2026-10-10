@@ -3,12 +3,19 @@ extends RefCounted
 # 房主端会话的共同接口(规格 §4.2):NetworkManager 只管连接、等待厅、RPC 收发与计时器,
 # 玩法逻辑在会话对象里。LiarsSession / PokerSession 覆盖这些方法;这里的默认值是「没有下一手、不收新人」。
 # 意图字典:骗子酒馆 {"kind": "play", "indices": [...]} / {"kind": "challenge"};德州 {"kind": action, "amount": int};
-# 炸弹猫见 BombCatSession(play / nope / draw / reinsert / give)。
+# 炸弹猫见 BombCatSession(play / nope / draw / reinsert / give);吹牛骰子见 LiarsDiceSession(bid / challenge)。
+# 炸弹猫起的玩法都走字典意图入口 rpc_session_intent:会话覆盖 validate_intent 做结构校验,其余玩法一律拒绝。
 
 
 func start(_seat_order: Array, _names: Dictionary, _rng: RandomNumberGenerator) -> Array:
 	# 开局事件(德州直接开第一手)
 	return []
+
+
+func validate_intent(_intent: Variant) -> String:
+	# rpc_session_intent 的结构校验(来自不可信对端,不看局面):合法返回 "",否则错误码。
+	# 骗子酒馆与德州走各自的 RPC,不收字典意图
+	return "invalid_intent"
 
 
 func handle_intent(_pid: int, _intent: Dictionary) -> Dictionary:

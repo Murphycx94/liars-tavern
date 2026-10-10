@@ -6,19 +6,21 @@ extends Node3D
 
 
 const DENOMINATIONS := [5000, 1000, 500, 100, 50, 10]
-# 面额颜色(规格 §5.4,按 sRGB 填写):10 象牙白、50 红、100 绿、500 黑、1000 金、5000 紫
+# 面额颜色(规格 §5.4,按 sRGB 填写):10 象牙白、50 红、100 绿、500 黑、1000 金、5000 紫。
+# 二次打磨(2026-10-10)换成同色相的粉彩:柔红、薄荷绿、深靛(「黑」也带色相)、奶黄金、淡紫,远看仍一眼分得清
 const COLORS := {
-	10: Color(0.9, 0.86, 0.76),
-	50: Color(0.74, 0.11, 0.09),
-	100: Color(0.13, 0.56, 0.25),
-	500: Color(0.08, 0.08, 0.09),
-	1000: Color(0.88, 0.66, 0.18),
-	5000: Color(0.46, 0.18, 0.66),
+	10: Color(0.90, 0.87, 0.78),
+	50: Color(0.82, 0.33, 0.32),
+	100: Color(0.30, 0.66, 0.46),
+	500: Color(0.22, 0.22, 0.33),
+	1000: Color(0.90, 0.72, 0.30),
+	5000: Color(0.60, 0.42, 0.78),
 }
 # 比真筹码(直径 3.9 厘米)大一圈:德州桌直径近 3 米、越肩镜头离桌心 2.6 米,真尺寸的筹码在 1280×720 下只剩几个像素
 const CHIP_RADIUS := 0.03
 const CHIP_HEIGHT := 0.0094
 const CHIP_SEGMENTS := 20
+const CHIP_BEVEL := 0.0016     # 上下边一圈圆角(软胶筹码,不再是锋利的圆柱边)
 const COLUMN_MAX := 10
 const DISPLAY_MAX := 40
 # 显示上限 40 枚时贪心拆分最多 8 列:5000 最多占 4 列,其余面额各至多 1 列,且两者此消彼长(见测试穷举)
@@ -28,7 +30,7 @@ const COLUMN_GAP := 0.004
 const JITTER := 0.0012         # 每枚筹码的随机错位:码得太齐像一根圆柱
 const CHIP_SHADER := preload("res://src/world/poker/chip.gdshader")
 
-static var _mesh: CylinderMesh = null
+static var _mesh: ArrayMesh = null
 static var _material: ShaderMaterial = null
 
 var amount := 0
@@ -118,9 +120,17 @@ static func footprint_radius() -> float:
 	return reach + CHIP_RADIUS + JITTER * sqrt(2.0)
 
 
-static func chip_mesh() -> CylinderMesh:
+static func chip_mesh() -> ArrayMesh:
+	# 车削的圆角筹码:顶面平(镶边与细环画在上面),上下边各一段斜面、法线与侧面平滑过渡(看起来是圆边,每枚 200 面;
+	# 满桌最坏约 900 枚),侧面竖直;
+	# 顶点色是白色(MultiMesh 的逐实例颜色乘上去不变)。高度、半径与原来的圆柱一样
 	if _mesh == null:
-		_mesh = MeshKit.cylinder(CHIP_RADIUS, CHIP_RADIUS, CHIP_HEIGHT, CHIP_SEGMENTS)
+		var h := CHIP_HEIGHT / 2.0
+		var r := CHIP_RADIUS
+		var e := CHIP_BEVEL
+		_mesh = MeshForge.commit(MeshForge.run(func(f: MeshForge):
+			f.lathe(PackedVector2Array([Vector2(0.0, -h), Vector2(r - e, -h), Vector2(r, -h + e), Vector2(r, h - e),
+				Vector2(r - e, h), Vector2(0.0, h)]), CHIP_SEGMENTS, PackedInt32Array([1, 4]))))
 	return _mesh
 
 

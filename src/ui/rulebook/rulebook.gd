@@ -247,8 +247,12 @@ func _build_header() -> Control:
 	title.add_theme_constant_override("shadow_offset_x", 2)
 	title.add_theme_constant_override("shadow_offset_y", 3)
 	row.add_child(title)
-	var subtitle := UiTheme.label("HOUSE  RULES   ·   游戏说明书", 15, UiTheme.PARCHMENT_DIM, UiTheme.latin_font())
+	# 五本书的页签放下之后只剩放得下「HOUSE RULES」的宽度(原来还有「· 游戏说明书」,总被截成「HOUSE RULES ·…」);
+	# 仍按剩余宽度缩(放不下就省略),不把整本书撑宽
+	var subtitle := UiTheme.label("HOUSE  RULES", 15, UiTheme.PARCHMENT_DIM, UiTheme.latin_font())
 	subtitle.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	subtitle.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	subtitle.clip_text = true
 	subtitle.size_flags_vertical = Control.SIZE_SHRINK_END
 	row.add_child(subtitle)
 	row.add_child(_build_tabs())

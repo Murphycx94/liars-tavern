@@ -230,7 +230,9 @@ func _put_chips(ev: Dictionary) -> void:
 
 
 func _bets_collected(ev: Dictionary) -> void:
+	# 一轮下注结束:到下一个 turn 事件之前没人在行动,回合横幅不能还写「等待 X 行动…」(收注、发公共牌、全下亮牌、摊牌分池都是)
 	screen.note_event(ev)
+	screen.set_current(null)
 	var refund: Dictionary = ev["refund"] if ev.get("refund") is Dictionary else {}
 	if refund.get("amount") is int and refund["amount"] > 0:
 		hud.log_event("%s 退回未跟注的 %s" % [screen.name_of(refund.get("pid")), ChipText.format(refund["amount"])], UiTheme.PARCHMENT_DIM)
@@ -241,6 +243,7 @@ func _bets_collected(ev: Dictionary) -> void:
 
 func _street(ev: Dictionary) -> void:
 	screen.note_event(ev)
+	screen.set_current(null)
 	var board: Array = screen.state.board
 	var new_cards: Array = (ev["cards"] if ev.get("cards") is Array else []).filter(PokerCard.is_card)
 	var street: String = ev["street"] if ev.get("street") is String else ""
@@ -259,6 +262,7 @@ func _street(ev: Dictionary) -> void:
 
 func _reveal(ev: Dictionary) -> void:
 	screen.note_event(ev)
+	screen.set_current(null)
 	if ev.get("reason") == "allin":
 		hud.announce("亮牌", UiTheme.BRASS_BRIGHT, "全下后先亮牌,再发完公共牌", 0.8)
 	for entry in (ev["hands"] if ev.get("hands") is Array else []):
@@ -273,6 +277,7 @@ func _reveal(ev: Dictionary) -> void:
 
 func _pot_won(ev: Dictionary) -> void:
 	screen.note_event(ev)
+	screen.set_current(null)
 	var winners: Array = ev["winners"] if ev.get("winners") is Array else []
 	var lit := best_cards(ev)
 	cards.highlight(lit)

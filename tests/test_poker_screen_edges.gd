@@ -1,7 +1,8 @@
 extends "res://tests/poker_screen_harness.gd"
 # 德州牌桌的边角情形(任务 7b 审查发现的问题各一条回归):迟到者开场运镜期间开了新的一手、
 # 手牌中途有人全下后离开、旁人的事件不重置已调好的加注额、结算面板下不再露出输光提示也不拉回机位、
-# 再领只等自己的回执、旧的弃牌确认在换了行动者后作废。
+# 再领只等自己的回执、旧的弃牌确认在换了行动者后作废;
+# 一轮下注结束后(收注、发公共牌、摊牌分池)回合横幅不再写上一个行动者(2026-10-10 试玩)。
 
 
 func _hand1() -> void:
@@ -189,3 +190,16 @@ func test_patrons_use_the_species_the_host_assigned():
 	assert_eq(app.world.patrons[9].species_index, 6, "中途入座的人也用房主分配的形象")
 	Net.lobby_players = saved_lobby
 
+
+func test_turn_banner_clears_once_the_betting_round_is_over():
+	# 大盲全下、自己跟注全下:之后没有 turn 事件,收注、亮牌、发完公共牌、分池期间横幅原来一直写「等待 X 行动…」
+	_open_table([1, 2, 3], false)
+	await _hand1()
+	await _feed([_bet(ME, PokerRules.CALL, 20), _bet(2, PokerRules.FOLD, 10), {"type": "turn", "pid": 3}], _pub(3))
+	assert_eq(screen.state.current_pid, 3)
+	assert_eq(screen.hud.controls._turn_label.text, "等待 %s 行动…" % names[3])
+	var flop := H.cards("Qc 7h 2s")
+	screen._on_events([_bet(3, PokerRules.CHECK, 20), _collect(),
+		{"type": "street", "street": PokerRules.FLOP, "cards": flop, "board": flop}])
+	await wait_until(func(): return screen.state.current_pid == null, MAX_WAIT, "收注时行动者清空")
+	assert_false(screen.hud.controls._turn_panel.visible, "没人在行动:回合横幅收起")

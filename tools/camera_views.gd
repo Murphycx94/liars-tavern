@@ -7,7 +7,8 @@ const NAMES := ["seat", "selfshot", "gun", "menu", "overhead", "fireplace", "bar
 	"focus0", "focus90", "focus180", "focus270", "focus120", "focus240", "door", "corner", "corner_front"]
 # 第一人称机位(要展台的牌桌,shot.gd / perf_probe.gd 另行处理,不进 NAMES):名字 -> 脖子偏移(座位坐标,模拟按住 WASD 探头)
 const FIRST_PERSON := {"fp": Vector3.ZERO, "fp_peek": Vector3(0.45, 0, -0.35), "fp_lean": Vector3(0, 0, -0.6),
-	"poker_fp": Vector3.ZERO, "poker_fp_peek": Vector3(-0.4, 0, -0.3), "bomb_fp": Vector3.ZERO}
+	"poker_fp": Vector3.ZERO, "poker_fp_peek": Vector3(-0.4, 0, -0.3), "bomb_fp": Vector3.ZERO,
+	"dice_fp": Vector3.ZERO, "ddz_fp": Vector3.ZERO}
 # 特写机位(复刻 TableWorld.focus_view:镜头在桌心斜上方、偏向座位左侧,看向座位上的头):名字 -> 座位角(度)
 const FOCUS := {"focus0": 0.0, "focus90": 90.0, "focus180": 180.0, "focus270": 270.0, "focus120": 120.0, "focus240": 240.0}
 

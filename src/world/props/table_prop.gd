@@ -1,17 +1,19 @@
 class_name TableProp
-# 牌桌:台面(封闭圆盘,桌面在 r ≤ 半径 + 0.03 内严格平整,外缘圆鼻边)、裙板、瓶状桌柱、四条 cabriole 弯腿与爪球足、
-# 齐平的黄铜嵌条、毡面。台面、裙板、嵌条与毡面跟着桌面半径重建(按半径缓存网格);桌柱与腿不随半径变。
+# 牌桌:台面(封闭圆盘,桌面在 r ≤ 半径 + 0.03 内严格平整,外缘椭圆枕头边)、裙板、瓶状桌柱、四条 cabriole 弯腿与圆爪足、
+# 两道齐平的细黄铜嵌线、毡面。台面、裙板、嵌条与毡面跟着桌面半径重建(按半径缓存网格);桌柱与腿不随半径变。
 # 节点:Table(桌根,原点在桌心地面)下 TableTop(木纹 table / dark + prop 三个 surface)、TableBase(turned + prop)、
 # Felt(毡面材质,不投影;放在桌根原点,毡面着色器的 obj_pos 以桌心为原点)。
 
 
 const SEGMENTS := 96
 const FLAT_REACH := 0.03       # 桌面在 r ≤ 半径 + FLAT_REACH 内严格平整(爪心落在 r≈0.92±0.058)
-const NOSE := 0.016            # 圆鼻边半径:外沿在 半径 + 0.046(骗子酒馆桌 0.996)
+const NOSE := 0.016            # 圆鼻边横向半径:外沿在 半径 + 0.046(骗子酒馆桌 0.996)
+const NOSE_DROP := 0.021       # 圆鼻边竖向半径(椭圆,比横向长:桌沿看起来更软更厚)
 const THICKNESS := 0.045       # 台面厚度
 const FELT_THICKNESS := SeatLayout.FELT_TOP - SeatLayout.TABLE_TOP
 const FELT_EDGE := 0.003       # 毡面边缘圆角
-const INLAY := Vector2(-0.007, 0.008)   # 黄铜嵌条的内外半径(相对桌面半径),只高出台面 0.5 mm
+# 两道细黄铜嵌线的内外半径(相对桌面半径),只高出台面 0.5 mm:细而柔的点缀,不再是一整条亮带
+const INLAYS := [Vector2(-0.0095, -0.0055), Vector2(0.0035, 0.0075)]
 const LEG_COUNT := 4
 
 
@@ -58,15 +60,16 @@ static func profile(radius: float) -> PackedVector2Array:
 	var top := SeatLayout.TABLE_TOP
 	var flat := radius + FLAT_REACH
 	var outer := flat + NOSE
-	# 下沿也是 1.4 cm 圆角(动森式圆润的桌沿;外沿半径不变,酒客躯干离桌沿的净空不受影响)
+	# 下沿 1.6 cm 圆角;圆鼻边是竖向拉长的椭圆(横 NOSE、竖 NOSE_DROP),像软软的枕头边
+	# (外沿半径不变,酒客躯干离桌沿的净空不受影响)
 	var pts := PackedVector2Array([Vector2(0.0, top - THICKNESS), Vector2(radius - 0.06, top - THICKNESS)])
 	for k in 6:
 		var a := -PI / 2.0 + PI / 2.0 * k / 5.0
-		pts.append(Vector2(outer - 0.014 + cos(a) * 0.014, top - THICKNESS + 0.014 + sin(a) * 0.014))
-	pts.append(Vector2(outer, top - NOSE))
-	for k in range(1, 9):
-		var a := PI / 2.0 * k / 8.0
-		pts.append(Vector2(flat + cos(a) * NOSE, top - NOSE + sin(a) * NOSE))
+		pts.append(Vector2(outer - 0.016 + cos(a) * 0.016, top - THICKNESS + 0.016 + sin(a) * 0.016))
+	pts.append(Vector2(outer, top - NOSE_DROP))
+	for k in range(1, 11):
+		var a := PI / 2.0 * k / 10.0
+		pts.append(Vector2(flat + cos(a) * NOSE, top - NOSE_DROP + sin(a) * NOSE_DROP))
 	pts.append(Vector2(radius - 0.15, top))
 	pts.append(Vector2(0.0, top))
 	return pts
@@ -82,13 +85,14 @@ static func top_recipe(f: MeshForge, radius: float) -> void:
 		Vector2(radius - 0.068, top - 0.125), Vector2(radius - 0.062, top - 0.121), Vector2(radius - 0.059, top - 0.114),
 		Vector2(radius - 0.062, top - 0.107), Vector2(radius - 0.07, top - 0.103), Vector2(radius - 0.07, top - THICKNESS - 0.001)]),
 		SEGMENTS, PackedInt32Array([1, 2, 6]))
-	# 齐平的黄铜嵌条:只高出台面 0.5 mm(爪子就搭在这一圈上)
+	# 两道齐平的细嵌线:只高出台面 0.5 mm(爪子就搭在这一圈上);缎面柔黄铜,远看是一圈淡淡的金边
 	f.surface(&"metal")
-	WorldMaterials.paint_prop(f, "brass")
-	var r0 := radius + INLAY.x
-	var r1 := radius + INLAY.y
-	f.lathe(PackedVector2Array([Vector2(r1, top - 0.0005), Vector2(r1, top + 0.0005), Vector2(r0, top + 0.0005),
-		Vector2(r0, top - 0.0005)]), SEGMENTS, PackedInt32Array([1, 2]))
+	WorldMaterials.paint_prop(f, "brass_soft")
+	for inlay: Vector2 in INLAYS:
+		var r0 := radius + inlay.x
+		var r1 := radius + inlay.y
+		# 只有顶面一条环带(0.5 mm 高的侧墙看不见,省下面数给圆爪足和枕头边)
+		f.lathe(PackedVector2Array([Vector2(r1, top + 0.0005), Vector2(r0, top + 0.0005)]), SEGMENTS)
 
 
 static func felt_recipe(f: MeshForge, radius: float) -> void:
@@ -104,7 +108,7 @@ static func felt_recipe(f: MeshForge, radius: float) -> void:
 
 
 static func base_recipe(f: MeshForge) -> void:
-	# 瓶状桌柱(y 0.10–0.66,三道环)+ 柱头托盘 + 四条 cabriole 弯腿(朝 45° + k·90°,落在座位之间)+ 黄铜柱箍与爪球足
+	# 瓶状桌柱(y 0.10–0.66,三道环)+ 柱头托盘 + 四条 cabriole 弯腿(朝 45° + k·90°,落在座位之间)+ 黄铜柱箍与圆爪足
 	var top := SeatLayout.TABLE_TOP
 	f.surface(&"turned")
 	f.part_space = true
@@ -136,11 +140,9 @@ static func base_recipe(f: MeshForge) -> void:
 	for k in LEG_COUNT:
 		var yaw := PI / 4.0 + k * PI / 2.0
 		var dir := Vector3(sin(yaw), 0, cos(yaw))
-		var ball := dir * 0.418 + Vector3(0, 0.032, 0)
-		f.sphere(0.032, 16, MeshForge.xf(ball))
-		# 三根爪趾扣住球顶
+		var side := Vector3(dir.z, 0, -dir.x)
+		# 圆滚滚的小爪足(代替爪球足,动物酒馆的桌子):扁圆的掌垫 + 前面三颗趾豆
+		f.sphere(0.036, 12, MeshForge.xf(dir * 0.418 + Vector3(0, 0.0245, 0), Vector3(0, rad_to_deg(yaw), 0), Vector3(1.0, 0.64, 1.12)))
 		for toe in 3:
-			var side := (toe - 1) * 0.55
-			var toe_dir := (dir * cos(side) + Vector3(dir.z, 0, -dir.x) * sin(side)).normalized()
-			f.tube(PackedVector3Array([ball + Vector3(0, 0.036, 0) - dir * 0.01, ball + toe_dir * 0.025 + Vector3(0, 0.026, 0),
-				ball + toe_dir * 0.034 + Vector3(0, 0.007, 0)]), 0.007, 6)
+			var at := dir * (0.452 - absf(toe - 1) * 0.008) + side * (toe - 1) * 0.0215
+			f.sphere(0.0128, 8, MeshForge.xf(at + Vector3(0, 0.0128, 0), Vector3.ZERO, Vector3(1.0, 0.95, 1.1)))

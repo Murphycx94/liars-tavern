@@ -30,8 +30,10 @@ var my_pid := 0
 var hud: BombCatHud
 var director: BombCatDirector
 var quips: QuipController
+var preview: CardPreview
 var world: TableWorld
 var cards: BombCatCards
+var fx3d: BombCatFx                # 道具效果层(平底锅、放大镜、炸弹猫……),挂在 poker_root 下随拆台收走
 var state := BombCatScreenState.new()
 var animating := true
 var intent_sink := Callable()     # 测试钩子:不走 Net,直接把意图交给本地会话(func(intent: Dictionary))
@@ -72,6 +74,10 @@ func _ready() -> void:
 	cards.my_pid = my_pid
 	world.poker_root.add_child(cards)
 	cards.sfx.connect(Sfx.play)
+	fx3d = BombCatFx.new(world)
+	fx3d.my_pid = my_pid
+	world.poker_root.add_child(fx3d)
+	fx3d.sfx.connect(Sfx.play)
 	BombCatFaces.build(self)
 	hud = BombCatHud.new()
 	add_child(hud)
@@ -79,6 +85,8 @@ func _ready() -> void:
 	quips = _make_quips()
 	add_child(quips)
 	hud.quip_pressed.connect(quips.toggle)
+	preview = _make_preview()
+	add_child(preview)   # 压在 HUD 与九宫格之上;只显示,不接鼠标
 	director = BombCatDirector.new(self, app, hud)
 	add_child(director)
 	_build_nameplates()
@@ -382,6 +390,15 @@ func _build_nameplates() -> void:
 		var anchor: Callable = world.nameplate_anchor.bind(pid) if world.is_poker_table() else world.patrons[pid].nameplate_anchor
 		app.labels.track(PLATE_KEY % pid, BombCatNameplate.new(state.name_of(pid)), anchor)
 	_update_nameplates()
+
+
+func pulse_nameplate(pid: Variant) -> void:
+	# 轮到他了:铭牌亮一下(自己没有铭牌,有回合横幅)
+	if not pid is int or app == null or app.get("labels") == null:
+		return
+	var plate: Variant = app.labels.get_node_for(PLATE_KEY % pid)
+	if plate is BombCatNameplate:
+		plate.pulse()
 
 
 func _update_nameplates() -> void:
@@ -707,6 +724,23 @@ func _make_quips() -> QuipController:
 	quip.log_line = hud.log_event
 	quip.bubble_offset = Vector2(0, BombCatDirector.BUBBLE_ABOVE_PLATE + QUIP_ABOVE_CLAIM)
 	return quip
+
+
+func _make_preview() -> CardPreview:
+	# 悬停大图(带牌名与说明):底部 2D 手牌条、3D 牌扇里自己的牌、弃牌堆顶上摊开的几张(牌背不算);
+	# 镜头去拍特写、快捷语面板或九宫格开着、说明书或确认框盖着、结算时藏起
+	var card_preview := CardPreview.new()
+	card_preview.source = func(point: Vector2) -> Array:
+		var out: Array = hud.strip.preview_candidates() if hud != null else []
+		var tavern = app.get("tavern")
+		if cards != null and tavern != null:
+			out.append_array(CardPreview.world_candidates(tavern.camera_rig.camera, point, cards.hoverable_cards()))
+		return out
+	card_preview.gate = func() -> Dictionary:
+		return {"camera_at_rest": director != null and director.is_camera_at_rest(),
+			"panel_open": _banter_panel_open() or (quips != null and quips.menu.is_open()),
+			"modal_open": app.is_modal_open(), "settlement": _settlement != null}
+	return card_preview
 
 
 func _banter_panel_open() -> bool:

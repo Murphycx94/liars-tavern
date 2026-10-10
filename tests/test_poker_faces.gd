@@ -46,7 +46,7 @@ func _all_textures() -> Array:
 
 
 func test_size_and_batch_budget_follow_the_spec():
-	assert_eq(PokerFaces.SIZE, Vector2i(256, 372))
+	assert_eq(PokerFaces.SIZE, Vector2i(320, 465), "烘焙尺寸 = 256×372 × 1.25(2026-10-10:第一人称与悬停大图也不糊)")
 	assert_eq(PokerFaces.BATCH_SIZE, 7)
 
 

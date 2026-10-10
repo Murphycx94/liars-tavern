@@ -44,9 +44,10 @@ const WOOD_PRESETS := {
 		"roughness_base": 0.82, "wear": 0.2,
 	},
 	"table": {
-		"color_dark": Color(0.32, 0.15, 0.055), "color_light": Color(0.54, 0.29, 0.11),
-		"scale": 1.0, "ring_frequency": 5.0, "grain_strength": 0.2, "grain_axis": 0, "across_axis": 2,
-		"roughness_base": 0.62, "varnish": 0.3, "wear": 0.1,
+		# 蜂蜜色台面(2026-10-10):更饱和的琥珀蜂蜜、亮部压一点(吊灯正下方不发白),年轮更疏更柔,清漆薄亮
+		"color_dark": Color(0.29, 0.125, 0.04), "color_light": Color(0.47, 0.24, 0.07),
+		"scale": 1.0, "ring_frequency": 3.5, "grain_strength": 0.14, "grain_axis": 0, "across_axis": 2,
+		"roughness_base": 0.6, "varnish": 0.35, "wear": 0.06,
 	},
 	"dark": {
 		# 线脚、椅子、杂物:奶咖色(不再是近黑的深棕)
@@ -63,12 +64,6 @@ const WOOD_PRESETS := {
 		"color_dark": Color(0.34, 0.16, 0.06), "color_light": Color(0.56, 0.31, 0.13),
 		"scale": 1.0, "ring_frequency": 2.5, "grain_strength": 0.16, "grain_axis": 1, "across_axis": 0,
 		"plank_width": 0.11, "plank_length": 9.0, "roughness_base": 0.76, "wear": 0.15, "plank_tint": 0.05,
-	},
-	"grip": {
-		# 玩具枪的握把:亮一点的焦糖木
-		"color_dark": Color(0.30, 0.13, 0.05), "color_light": Color(0.52, 0.26, 0.10),
-		"scale": 2.0, "ring_frequency": 3.0, "grain_strength": 0.15, "grain_axis": 1, "across_axis": 0,
-		"roughness_base": 0.6, "varnish": 0.3,
 	},
 	"turned": {
 		# 车削件(桌柱、桌腿):纤维沿 Y(顺着长度走),不分木板;比台面深一档
@@ -96,6 +91,14 @@ const PALETTE := {
 	"enamel_red": [Color(0.78, 0.36, 0.32), 0.55, 0.0, Vector2.ZERO],     # 柔红
 	"enamel_cream": [Color(0.80, 0.76, 0.64), 0.6, 0.0, Vector2(0.12, 0.0)],
 	"bulb": [Color(1.0, 0.9, 0.7), 0.3, 0.0, Vector2(1.0, 0.0)],
+	# 道具二次打磨(2026-10-10):玩具枪与小道具的软胶粉彩
+	"toy_metal": [Color(0.44, 0.58, 0.80), 0.45, 0.25, Vector2.ZERO],    # 粉彩天蓝缎面金属(玩具枪机身;太浅会在暖光下发白发灰)
+	"toy_silver": [Color(0.74, 0.74, 0.78), 0.42, 0.35, Vector2.ZERO],   # 奶油银(转轮、击锤:和机身分出两色,一眼认出转轮)
+	"candy_pink": [Color(0.80, 0.40, 0.52), 0.55, 0.0, Vector2.ZERO],    # 糖果粉(握把、枪口帽、击锤钮)
+	"candy_cream": [Color(0.80, 0.75, 0.62), 0.6, 0.0, Vector2.ZERO],    # 奶油色(徽章、准星珠,不自发光)
+	"brass_soft": [Color(0.80, 0.67, 0.40), 0.6, 0.35, Vector2.ZERO],   # 缎面柔黄铜:桌面嵌线、小道具的金边(比 brass 哑、暖)
+	"wax_pink": [Color(0.80, 0.62, 0.62), 0.62, 0.0, Vector2(0.0, 0.18)],    # 粉彩蜡烛:淡粉
+	"wax_butter": [Color(0.80, 0.71, 0.48), 0.62, 0.0, Vector2(0.0, 0.18)],  # 粉彩蜡烛:奶黄
 }
 
 static var _cache := {}

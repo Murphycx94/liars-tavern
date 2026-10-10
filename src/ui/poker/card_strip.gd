@@ -57,6 +57,21 @@ func cards() -> Array:
 	return _cards.duplicate()
 
 
+func preview_candidates(avoid := Rect2()) -> Array:
+	# 悬停大图(CardPreview)的候选:每张亮着的牌一个屏幕矩形;整条不可见(如摊牌面板收起)时为空。
+	# avoid:牌条所在面板的屏幕矩形,大图摆在面板外面,不挡住同一行的名字与牌型
+	var out := []
+	if not is_visible_in_tree():
+		return out
+	for i in get_child_count():
+		var face := _face(i)
+		if face.visible and face.has_meta(CARD_META):
+			var rect := face.get_global_transform_with_canvas() * Rect2(Vector2.ZERO, face.size)
+			out.append(CardPreview.rect_candidate(rect, face.texture, i, face.get_instance_id(),
+				"", "", avoid))
+	return out
+
+
 func highlight(cards: Variant) -> void:
 	# 标出成牌的那几张(摊牌时赢家的 5 张),其余压暗;空数组恢复
 	var keep := sanitize(cards)

@@ -94,6 +94,19 @@ func test_can_start_needs_two_players_all_ready():
 	assert_false(lobby.can_start())
 
 
+func test_dou_dizhu_needs_exactly_three_and_caps_at_three():
+	var lobby := _make_lobby()
+	var need := GameMode.min_players(GameMode.DOU_DIZHU)
+	lobby.add_member(10, "乙")
+	lobby.set_ready(10, true)
+	assert_true(lobby.can_start(), "其他玩法 2 人就能开")
+	assert_false(lobby.can_start(need), "斗地主 2 人不能开")
+	lobby.add_member(11, "丙")
+	lobby.set_ready(11, true)
+	assert_true(lobby.can_start(need))
+	assert_string_contains(lobby.check_join(Protocol.VERSION, false, GameMode.DOU_DIZHU, false), "已满", "第 4 人进不来")
+
+
 func test_set_ready_unknown_member_and_host_is_rejected():
 	var lobby := _make_lobby()
 	assert_false(lobby.set_ready(99, true))

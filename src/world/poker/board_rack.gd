@@ -11,6 +11,17 @@ const LIP_DEPTH := 0.012
 const LIP_OFFSET := 0.008   # 托条在牌下边之前多远
 
 
+static func guard_shape(rack: Node3D) -> Dictionary:
+	# 穿模防护的形状(牌桌坐标):整排公共牌与托板的水平占地,顶面是斜立的牌的上边(放大回弹时再高一点)
+	var tilt := deg_to_rad(PokerLayout.BOARD_TILT_DEG)
+	var card_len := Card3D.HEIGHT * PokerLayout.BOARD_SCALE
+	var depth := card_len * cos(tilt)
+	var front := PokerLayout.board_front_z()
+	var top := SeatLayout.TABLE_TOP + PokerLayout.RACK_HEIGHT + card_len * sin(tilt) + 0.01
+	return ClipGuard.rect(Vector3(0, 0, front - depth / 2.0), Vector3.RIGHT,
+		Vector2(PokerLayout.board_width() / 2.0 + MARGIN, depth / 2.0 + MARGIN), top, ClipGuard.LIFT, rack)
+
+
 func _init() -> void:
 	name = "BoardRack"
 	var tilt := deg_to_rad(PokerLayout.BOARD_TILT_DEG)

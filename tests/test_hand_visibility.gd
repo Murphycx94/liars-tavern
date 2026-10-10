@@ -66,7 +66,8 @@ func test_poker_hand_beside_the_big_head_stays_visible():
 		world.configure_table(SeatLayout.POKER_TABLE_RADIUS)
 		world.arrange([{"pid": 1, "species": species}, {"pid": 2, "species": (species + 1) % Species.count()}], 1, true, false)
 		me = world.patrons[1]
-		me.fan.transform = PokerLayout.fan_transform(world.seat_transform(world.seat_angles[1]), _eye())
+		# 同 PokerCards:hold_fan 举住(穿模修复 2026-10-10 之后直接改 fan.transform 不再算数:默认牌扇每帧立回桌面上空)
+		me.hold_fan(PokerLayout.fan_transform(world.seat_transform(world.seat_angles[1]), _eye()))
 		await wait_seconds(SETTLE)
 		for offset in [Vector3.ZERO, Vector3(0, 0, -0.4), Vector3(-0.4, 0, 0)]:
 			me.set_neck_target(offset)

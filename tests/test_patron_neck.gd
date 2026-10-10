@@ -71,6 +71,8 @@ func test_reach_is_three_meters():
 
 
 func test_reach_is_limited():
+	# 只量伸出上限:关掉软碰撞(对面坐着人,头会被挡在他的头前;软碰撞见 test_clipping)
+	patron.guard = null
 	patron.set_neck_target(Vector3(0, 0, -5.0))
 	await wait_seconds(SETTLE)
 	var flat := Vector2(patron.neck_offset().x, patron.neck_offset().z)
