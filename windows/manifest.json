@@ -1,0 +1,11 @@
+{
+	"base_build": 1,
+	"build": 10,
+	"engine": "4.7.1.stable",
+	"notes": "新增:熊猫和企鹅两个新形象(熊猫叼着竹子);吹牛骰子、斗地主、新牌面与修复",
+	"pck_file": "game-b10.pck",
+	"pck_sha256": "d112c9e7c9fe15f8beb4481dd4ad5b3084e4a1be5207d9f41afe72466480f139",
+	"pck_size": 1967240,
+	"platform": "windows",
+	"version": "0.9.3"
+}
