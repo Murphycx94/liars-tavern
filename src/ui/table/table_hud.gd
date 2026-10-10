@@ -53,6 +53,7 @@ func _ready() -> void:
 
 func _build_target_panel() -> void:
 	var panel := _corner_panel(Control.PRESET_TOP_LEFT, Vector2(24, 20))
+	panel.add_to_group(WorldLabels.KEEP_OUT_GROUP)   # 对话气泡让开目标牌面板
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 14)
 	panel.add_child(row)
@@ -60,6 +61,8 @@ func _build_target_panel() -> void:
 	_target_tex.custom_minimum_size = Vector2(54, 78)
 	_target_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_target_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# 360×520 的牌面缩到 54×78:没有 mipmap 的线性过滤只取几个像素,笔画一缩就成锯齿(这里原来漏设了)
+	_target_tex.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	_target_tex.texture = CardFaces.texture(CardFaces.BACK)
 	_center_pivot(_target_tex)
 	row.add_child(_target_tex)
@@ -81,6 +84,7 @@ func _build_rules_button() -> void:
 	add_child(row)
 	row.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
 	row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	row.add_to_group(WorldLabels.KEEP_OUT_GROUP)
 	row.add_child(_top_button("对话 · %s" % OS.get_keycode_string(Quips.TOGGLE_KEY), quip_pressed))
 	row.add_child(_top_button("规则 · %s" % OS.get_keycode_string(RulebookContent.HOTKEY), rules_pressed))
 

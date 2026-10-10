@@ -1,7 +1,7 @@
 class_name Revolver3D
 extends Node3D
 # 左轮手枪模型:原点在握把(手持点),枪管沿本地 -Z。转轮可旋转、击锤可扳动、开火有后坐。
-# 网格配方在 RevolverModel(单动左轮:胡桃木犁柄握把、五槽转轮、半月准星、黄铜护圈)。
+# 网格配方在 RevolverModel(玩具式单动左轮:糖果色犁柄握把与枪口帽、五槽转轮、圆珠准星、黄铜护圈)。
 
 
 const BARREL_Y := RevolverModel.BARREL_Y
@@ -27,15 +27,14 @@ var muzzle: Marker3D
 static func forge_jobs() -> Array:
 	# 启动时后台预建(材质在主线程先建好)
 	return [
-		["revolver:body", RevolverModel.body, _materials(true)],
-		["revolver:drum", RevolverModel.drum, _materials(false)],
-		["revolver:hammer", RevolverModel.hammer, _materials(false)],
+		["revolver:body", RevolverModel.body, _materials()],
+		["revolver:drum", RevolverModel.drum, _materials()],
+		["revolver:hammer", RevolverModel.hammer, _materials()],
 	]
 
 
-static func _materials(with_grip: bool) -> Dictionary:
-	if with_grip:
-		return {&"metal": WorldMaterials.prop(), &"grip": WorldMaterials.wood("grip", true)}
+static func _materials() -> Dictionary:
+	# 三件都只有一个 prop surface(糖果色握把也是顶点色,不再用木纹材质)
 	return {&"metal": WorldMaterials.prop()}
 
 
@@ -46,10 +45,10 @@ static func aligned_angle(a: float) -> float:
 
 func _init() -> void:
 	var body := MeshKit.pivot(self, Vector3.ZERO, "Body")
-	MeshKit.add(body, MeshForge.cached("revolver:body", RevolverModel.body, _materials(true)), null).name = "BodyMesh"
+	MeshKit.add(body, MeshForge.cached("revolver:body", RevolverModel.body, _materials()), null).name = "BodyMesh"
 	# 转轮:5 个一模一样的弹膛(标记只表示位置,外观不区分),绕枪管轴旋转
 	drum = MeshKit.pivot(body, DRUM_POS, "Drum")
-	MeshKit.add(drum, MeshForge.cached("revolver:drum", RevolverModel.drum, _materials(false)), null).name = "DrumMesh"
+	MeshKit.add(drum, MeshForge.cached("revolver:drum", RevolverModel.drum, _materials()), null).name = "DrumMesh"
 	for i in Revolver.CHAMBERS:
 		var marker := Marker3D.new()
 		marker.name = "Chamber%d" % (i + 1)
@@ -57,7 +56,7 @@ func _init() -> void:
 		drum.add_child(marker)
 	# 击锤:绕铰点扳动
 	hammer = MeshKit.pivot(body, HAMMER_PIVOT, "Hammer")
-	MeshKit.add(hammer, MeshForge.cached("revolver:hammer", RevolverModel.hammer, _materials(false)), null).name = "HammerMesh"
+	MeshKit.add(hammer, MeshForge.cached("revolver:hammer", RevolverModel.hammer, _materials()), null).name = "HammerMesh"
 	muzzle = Marker3D.new()
 	muzzle.position = MUZZLE_POS
 	add_child(muzzle)

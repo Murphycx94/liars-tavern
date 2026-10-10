@@ -12,6 +12,8 @@ const SIDE_MARGIN := 48
 const EDGE_MARGIN := 24
 const ROW_GAP := 6
 const ROOM_LIST_HEIGHT := 80.0   # 正好露出一个房间行,更多房间在列表内滚动
+# 「局域网房间」标题行右端的搜索状态(不另占一行,给两行玩法格子腾出高度):定宽右对齐,搜索中的省略号跳动不推动分隔线
+const SCAN_LABEL_WIDTH := 170.0
 # 名号旁的头像:和昵称输入框一样高(面板在 1280×720 下已经差不多满了,这一行不能再长高)
 const SPECIES_CHIP_SIZE := 42.0
 
@@ -49,7 +51,8 @@ func _ready() -> void:
 	Net.join_failed.connect(_on_join_failed)
 	# 传 self:旧菜单迟到的 stop_listening 不会关掉这里开的监听
 	var listening := Discovery.start_listening(self)
-	_scan_label.text = "正在搜索局域网房间" if listening else "无法监听局域网广播(端口被占用),请用 IP 直连"
+	_scan_label.text = "正在搜索局域网房间" if listening else "广播端口被占用,请用 IP 直连"
+	_scan_label.tooltip_text = "" if listening else "无法监听局域网广播(端口被占用),请用下面的 IP 直连"
 	_refresh_rooms(Discovery.get_rooms())
 	Updater.check_feed()
 	_play_intro()
@@ -159,12 +162,19 @@ func _build_identity(box: VBoxContainer) -> void:
 
 
 func _mode_section() -> Control:
-	# 「开一桌」小节标题那一行放玩法三段切换:不另占一行,1280×720 下面板不用滚动
+	# 「开一桌」小节标题右边放六种玩法的三列两行格子(铺满标题右边的宽度,不画分隔线):不另占一整行,
+	# 1280×720 下面板不用滚动(「局域网房间」的搜索状态挪进了它的标题行,腾出这多出来的一行按钮)
 	_mode = Settings.last_mode()
 	if not GameMode.menu_modes().has(_mode):
-		_mode = GameMode.DEFAULT   # 上次选的玩法暂时不在菜单里(GameMode.BOMB_CAT_ENABLED)
-	var row := _section("开一桌")
-	row.add_child(ModePicker.build(_mode, _select_mode))
+		_mode = GameMode.DEFAULT   # 上次选的玩法暂时不在菜单里(GameMode.BOMB_CAT_ENABLED 等开关,或还没登记的玩法)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var label := UiTheme.label("开一桌", 19, UiTheme.BRASS, UiTheme.display_font())
+	label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(label)
+	var picker := ModePicker.build(_mode, _select_mode)
+	picker.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(picker)
 	return row
 
 
@@ -210,9 +220,13 @@ func _select_mode(mode: String) -> void:
 
 
 func _build_rooms(box: VBoxContainer) -> void:
-	box.add_child(_section("局域网房间"))
+	var header := _section("局域网房间")
+	box.add_child(header)
 	_scan_label = UiTheme.label("", 15, UiTheme.MUTED)
-	box.add_child(_scan_label)
+	_scan_label.custom_minimum_size = Vector2(SCAN_LABEL_WIDTH, 0)
+	_scan_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_scan_label.mouse_filter = Control.MOUSE_FILTER_PASS   # 端口被占用时悬停看完整说明
+	header.add_child(_scan_label)
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(0, ROOM_LIST_HEIGHT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -328,9 +342,13 @@ func _on_host_pressed() -> void:
 
 
 static func default_room_name(pname: String, mode: String) -> String:
-	# 没填房名时:骗子酒馆「X 的酒馆」,德州「X 的牌局」,炸弹猫「X 的猫窝」
+	# 没填房名时:骗子酒馆「X 的酒馆」,德州「X 的牌局」,炸弹猫「X 的猫窝」,吹牛骰子「X 的骰子局」,斗地主「X 的斗地主」
 	if GameMode.is_bomb_cat(mode):
 		return "%s 的猫窝" % pname
+	if GameMode.is_liars_dice(mode):
+		return "%s 的骰子局" % pname
+	if mode == GameMode.DOU_DIZHU:
+		return "%s 的斗地主" % pname
 	return ("%s 的牌局" if GameMode.is_poker(mode) else "%s 的酒馆") % pname
 
 

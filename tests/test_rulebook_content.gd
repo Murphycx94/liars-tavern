@@ -70,7 +70,8 @@ func test_liars_book_is_the_default_and_keeps_its_chapters():
 
 
 func test_each_book_has_a_tab_title():
-	assert_eq(RulebookContent.BOOKS, [RulebookContent.BOOK_LIARS, RulebookContent.BOOK_BOMB_CAT, RulebookContent.BOOK_POKER])
+	assert_eq(RulebookContent.BOOKS, [RulebookContent.BOOK_LIARS, RulebookContent.BOOK_BOMB_CAT, RulebookContent.BOOK_LIARS_DICE,
+		RulebookContent.BOOK_DOU_DIZHU, RulebookContent.BOOK_POKER])
 	assert_eq(RulebookContent.book_title(RulebookContent.BOOK_LIARS), "骗子酒馆")
 	assert_eq(RulebookContent.book_title(RulebookContent.BOOK_POKER), "德州扑克")
 

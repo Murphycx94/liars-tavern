@@ -1,13 +1,14 @@
 class_name PokerFaces
 # 德州扑克 52 张牌面:在离屏 SubViewport 里矢量绘制「超大角标」四色牌面(PokerFacePainter),
 # 抓取成带 mipmap 的贴图。缓存与骗子酒馆的 CardFaces 分开:CardFaces.texture 遇到德州牌才转到这里,
-# CardFaces.is_built 仍只管骗子酒馆的 5 张;牌背沿用 CardFaces.BACK。
-# 52 张约 25 MiB,所以只在进入德州时(等待厅、迟到者进牌桌、说明书翻到德州那本)才在后台生成:
+# CardFaces.is_built 仍只管骗子酒馆的 5 张;德州有自己的牌背 back_texture()(软藏青底 + 莓果筹码)。
+# 52 张 320×465 约 41 MiB(含 mipmap;2026-10-10 前是 256×372、约 26 MiB),所以只在进入德州时(等待厅、迟到者进牌桌、说明书翻到德州那本)才在后台生成:
 # 每帧最多 BATCH_SIZE 个 SubViewport,分批完成不卡顿;生成完刷新 3D 牌的材质并发出 built 信号,
 # 2D 小牌据此重新取纹理。无头模式(哑渲染器不出图)下退化为按花色着色的小纯色纹理,逻辑照常运行。
 
 
-const SIZE := PokerFaceArt.SIZE
+const BAKE_SCALE := 1.25                   # 画家按 PokerFaceArt.SIZE(256×372)的坐标画,烘焙时整体放大这么多
+const SIZE := Vector2i(320, 465)           # 烘焙尺寸 = 256×372 × 1.25:第一人称底牌与 2–3 倍的悬停大图也不糊
 const BATCH_SIZE := 7                      # 每帧最多这么多个 SubViewport(13 个 8×MSAA 视口同帧时实测掉到 23 ms 一帧)
 const FALLBACK_SIZE := 8                   # 占位与退化纹理的边长
 const FALLBACK_TINT := 0.3                 # 退化纹理向花色偏的程度:无头调试时还分得出花色
@@ -24,6 +25,7 @@ class Notifier:
 static var batch_renderer := Callable()
 
 static var _textures := {}
+static var _back: Texture2D = null         # 德州牌背(随最后一批一起画;没画出来时是素色占位)
 static var _placeholder: Texture2D = null
 static var _notifier: Notifier = null
 static var _building := false
@@ -35,6 +37,13 @@ static func texture(card: int) -> Texture2D:
 	if _textures.has(card):
 		return _textures[card]
 	return _placeholder_texture()
+
+
+static func back_texture() -> Texture2D:
+	# 德州牌背:3D 德州牌的背面与 2D 界面共用;还没生成时是一块软藏青
+	if _back == null:
+		_back = _solid(PokerFacePainter.BACK_FIELD)
+	return _back
 
 
 static func is_built() -> bool:
@@ -52,6 +61,7 @@ static func built_signal() -> Signal:
 static func clear() -> void:
 	# 退出与测试用:丢掉纹理、占位与信号源;进行中的生成在交图时发现代数变了,整批作废
 	_textures = {}
+	_back = null
 	_placeholder = null
 	_notifier = null
 	_building = false
@@ -92,12 +102,21 @@ static func build(host: Node) -> void:
 		for card in cards():
 			_textures[card] = _fallback(card)
 	else:
-		for batch in batches(cards(), BATCH_SIZE):
-			var images: Array = await _render(tree, batch)
+		var groups := batches(cards(), BATCH_SIZE)
+		for g in groups.size():
+			var batch: Array = groups[g]
+			# 牌背跟最后一批一起画(最后一批不满 BATCH_SIZE,加一张也不超预算)
+			var with_back: bool = g == groups.size() - 1 and batch.size() < BATCH_SIZE and batch_renderer.is_null()
+			var images: Array = await _render(tree, batch + ([PokerFacePainter.BACK] if with_back else []))
 			if generation != _generation:
 				return
 			for i in batch.size():
 				_textures[batch[i]] = _to_texture(images[i] if i < images.size() else null, batch[i])
+			if with_back and images.size() > batch.size() and images[batch.size()] != null \
+					and not (images[batch.size()] as Image).is_empty():
+				var back: Image = images[batch.size()]
+				back.generate_mipmaps()
+				_back = ImageTexture.create_from_image(back)
 	_building = false
 	Card3D.refresh_materials()
 	built_signal().emit()
@@ -139,7 +158,10 @@ static func _viewport(card: int) -> SubViewport:
 	vp.transparent_bg = true   # 圆角外透明:牌面着色器按透明度裁掉
 	vp.msaa_2d = VIEWPORT_MSAA
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
-	vp.add_child(PokerFacePainter.new(card))
+	vp.add_child(CardFaces.bleed_backdrop(Vector2(SIZE)))   # 圆角外透明像素的 RGB 写成牌边色,mipmap 不发黑
+	var painter := PokerFacePainter.new(card)
+	painter.scale = Vector2.ONE * BAKE_SCALE
+	vp.add_child(painter)
 	return vp
 
 

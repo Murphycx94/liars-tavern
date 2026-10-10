@@ -46,7 +46,8 @@ const LOOK := {
 		Vector3(-0.36, 0.3, 0.3), Vector3(-0.35, 0.13, 0.36), Vector3(-0.32, 0.058, 0.46), Vector3(-0.26, 0.042, 0.58),
 		Vector3(-0.16, 0.03, 0.68), Vector3(-0.045, 0.022, 0.74)], "radius": 0.07, "tip_radius": 0.012,
 		"color": "fur", "material": 4.0, "sway_range": Vector2(0.86, 1.0), "sway": 0.07},
-	"anim": {"look_pitch_min": -0.3, "blink_speed": 1.0},
+	# 低头下限比别人浅:长吻低头会戳进桌面(穿模修复 2026-10-10 实测:−0.3 再加噪声与点头,轮到他前倾时下颌尖低于桌面)
+	"anim": {"look_pitch_min": -0.25, "blink_speed": 1.0},
 }
 
 # 两颌(Head 局部):上颌宽而罩住下颌,吻尖 z ≥ −0.38
@@ -165,7 +166,14 @@ static func _v_half(y: float) -> float:
 static func _front(shapes: Array, x: float, y: float, lift: float) -> Vector3:
 	var from := Vector3(0, y, 1.5)
 	var d := (Vector3(x, y, -0.2) - from).normalized()
-	return MeshForge.blob_surface(from, d, shapes, PatronBuilder.BLOB_K) + d * lift
+	var p := MeshForge.blob_surface(from, d, shapes, PatronBuilder.BLOB_K)
+	if p.z > 0.0:
+		# 射线从背后擦过躯干外面(一个椭球都没碰到)时 blob_surface 返回起点 (0, y, 1.5):
+		# 翻领、腹鳞的边角会拉出一条 1.7 米长、穿过椅背的细条(穿模修复 2026-10-10 实测)。改从躯干里面往外找胸前表面
+		from = Vector3(0, y, 0.0)
+		d = (Vector3(x, y, -0.2) - from).normalized()
+		p = MeshForge.blob_surface(from, d, shapes, PatronBuilder.BLOB_K)
+	return p + d * lift
 
 
 static func _open_shirt(f: MeshForge, pal: Dictionary, shapes: Array) -> void:

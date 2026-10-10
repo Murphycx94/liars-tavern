@@ -28,7 +28,16 @@ const TRANSFER_ARC := 0.3
 const BOMB_FLIGHT := 0.4        # 炸弹从牌堆顶翻起来,立在摸牌人面前
 const REINSERT_FLIGHT := 0.5    # 炸弹被偷偷塞回牌堆(插进牌堆中间)
 const DROP_FLIGHT := 0.5        # 出局者的手牌散进弃牌堆底
-const SHUFFLE_TIME := 0.8       # 洗牌:牌堆抖一抖
+const SHUFFLE_TIME := 1.15      # 洗牌:牌堆炸成一股小龙卷风(一圈牌背绕着转、越转越高),再落回来叠好
+const SHUFFLE_BOUNCE := 0.16    # 落回之后牌堆「噗」地一弹
+const TORNADO_CARDS := 12
+const TORNADO_RADIUS := 0.25
+const TORNADO_HEIGHT := 0.42
+const PEEK_RISE := 0.32         # 偷看:牌堆顶三张浮起来排成发光的扇面(只有偷看的人看到正面)
+const PEEK_SINK := 0.25
+const PEEK_FAN_HEIGHT := 0.2
+const PEEK_FAN_SPACING := 0.095
+const JIGGLE_TIME := 0.18       # 「不行!」盖章时桌上的牌一震
 const LAYOUT_TIME := 0.18       # 牌扇重排
 const LIFT_HOVER := 0.012
 const LIFT_SELECTED := 0.035
@@ -54,6 +63,8 @@ var _hovered := -1
 var _peek: Array = []
 var _bomb: BombCard3D = null
 var _sparks: GPUParticles3D = null
+var _rising: Array = []          # 偷看时浮起来的三张(临时的,演完自己释放)
+var _tornado: Array = []         # 洗牌龙卷风里的牌(临时的)
 var _epoch := 0
 
 
@@ -108,8 +119,21 @@ func bomb_node() -> BombCard3D:
 	return _bomb if is_instance_valid(_bomb) else null
 
 
+func hoverable_cards() -> Array:
+	# 本机能悬停放大(CardPreview)的牌:自己牌扇里的手牌、弃牌堆顶上摊开的几张(牌背由 CardPreview 自己排除)
+	return held_cards(my_pid) + _discard_cards.filter(func(c): return is_instance_valid(c))
+
+
 func peek_nodes() -> Array:
 	return _peek.filter(func(c): return is_instance_valid(c))
+
+
+func rising_nodes() -> Array:
+	return _rising.filter(func(c): return is_instance_valid(c))
+
+
+func tornado_nodes() -> Array:
+	return _tornado.filter(func(c): return is_instance_valid(c))
 
 
 # —— 对账 ——
@@ -153,6 +177,10 @@ func set_selection(selected: Dictionary, hovered: int) -> void:
 func clear() -> void:
 	_epoch += 1
 	clear_peek()
+	_free_cards(_rising)
+	_rising = []
+	_free_cards(_tornado)
+	_tornado = []
 	_free_bomb()
 	for pid in _held:
 		_free_cards(_held[pid])
@@ -267,8 +295,8 @@ func draw(pid: int, id: String, p_deck_count: int) -> void:
 		_layout(pid, 0.0)
 
 
-func reveal_bomb(pid: int, p_deck_count: int) -> void:
-	# 摸到炸弹:牌堆顶那张翻起来立在摸牌人面前(牌面朝桌心),导火索冒火花
+func reveal_bomb(pid: int, p_deck_count: int, sparks := true) -> void:
+	# 摸到炸弹:牌堆顶那张翻起来立在摸牌人面前(牌面朝桌心),导火索冒火花(sparks 为假时火花交给炸弹猫道具)
 	_free_bomb()
 	_set_deck(p_deck_count)
 	_bomb = _new_card(BombCatCard.BOMB, _deck_top.transform.translated(Vector3.UP * 0.002))
@@ -276,7 +304,8 @@ func reveal_bomb(pid: int, p_deck_count: int) -> void:
 	var target := BombCatLayout.bomb_show(world.seat_angle_now(pid), world.seat_radius)
 	sfx.emit("flip")
 	_fly(_bomb, global_transform * target, BOMB_FLIGHT, 0.25, 0.0)
-	_sparks = Fx.fuse_sparks(_bomb, SPARK_LOCAL)
+	if sparks:
+		_sparks = Fx.fuse_sparks(_bomb, SPARK_LOCAL)
 	await _wait(BOMB_FLIGHT)
 	if is_instance_valid(_bomb):
 		_bomb.pulse_glow(Color(1.0, 0.45, 0.2), 1.6, 0.8)
@@ -328,8 +357,9 @@ func discard_hand(pid: int) -> void:
 	_set_discard_base()
 
 
-func transfer(from: int, to: int, id: String) -> void:
-	# 讨要 / 抽牌 / 点名:一张牌从 from 手里飞到 to 手里;只有当事人(id 非空)看得到正面,别人看到的是牌背
+func transfer(from: int, to: int, id: String, on_card := Callable()) -> void:
+	# 讨要 / 抽牌 / 点名:一张牌从 from 手里飞到 to 手里;只有当事人(id 非空)看得到正面,别人看到的是牌背。
+	# on_card(card) 在牌出手时调用(导演拿去挂蝴蝶结 / 闪光拖尾)
 	var epoch := _epoch
 	var nodes := _take(from, [id] if from == my_pid and id != "" else [], [])
 	var card: BombCard3D = nodes[0]
@@ -337,6 +367,8 @@ func transfer(from: int, to: int, id: String) -> void:
 	if not world.patrons.has(to):
 		card.queue_free()
 		return
+	if on_card.is_valid():
+		on_card.call(card)
 	if not _held.has(to):
 		_held[to] = []
 	_held[to].append(card)
@@ -353,19 +385,105 @@ func transfer(from: int, to: int, id: String) -> void:
 
 
 func shuffle() -> void:
-	# 洗牌:牌堆左右抖、顶上那张转一转,再落回原位
-	sfx.emit("riffle")
-	var base := _deck_box.position
-	var top := _deck_top.transform
+	# 洗牌:牌堆顶上炸出一股小龙卷风——一圈牌背从牌堆里旋出来、绕着转、越转越高,再一张张旋回去,
+	# 牌堆被压扁后「噗」地弹回原样。龙卷风里的牌是临时的,不改牌堆张数
+	sfx.emit("tornado")
+	var epoch := _epoch
+	_free_cards(_tornado)
+	_tornado = []
+	var top := BombCatLayout.deck_top(maxi(deck_count - 1, 0))
+	var base := top.origin
+	var count := mini(TORNADO_CARDS, maxi(deck_count, 3))
+	for i in count:
+		var card := _new_card(BombCatFaces.BACK, top)
+		card.name = "Tornado%d" % i
+		_tornado.append(card)
+	var box_scale := Vector3.ONE
 	var tween := create_tween()
 	tween.tween_method(func(t: float) -> void:
-		var wobble := sin(t * TAU * 5.0) * (1.0 - t)
-		_deck_box.position = base + Vector3(wobble * 0.012, absf(wobble) * 0.006, 0)
-		_deck_box.rotation.y = wobble * 0.12
-		_deck_top.transform = Transform3D(Basis(Vector3.UP, wobble * 0.35) * top.basis, top.origin + Vector3(wobble * 0.015, absf(wobble) * 0.02, 0)),
+		for i in _tornado.size():
+			var card: BombCard3D = _tornado[i]
+			if not is_instance_valid(card):
+				continue
+			var k := float(i) / maxf(_tornado.size(), 1)
+			# 每张错开一点出场 / 回场:0..0.3 旋出、0.3..0.72 绕圈升高、0.72..1 旋回牌堆
+			var u := clampf((t - k * 0.12) / 0.88, 0.0, 1.0)
+			var out := smoothstep(0.0, 0.3, u) * (1.0 - smoothstep(0.72, 1.0, u))
+			var angle := k * TAU + u * TAU * 2.6
+			var radius := TORNADO_RADIUS * out * (0.75 + 0.35 * k)
+			var height := TORNADO_HEIGHT * out * (0.12 + 0.88 * k)
+			var pos := base + Vector3(cos(angle) * radius, height, sin(angle) * radius)
+			var tilt := Basis(Vector3.UP, -angle) * Basis(Vector3.RIGHT, out * 0.75) * Basis(Vector3.BACK, out * 0.45)
+			card.transform = Transform3D(tilt.scaled(Vector3.ONE * BombCatLayout.PILE_SCALE * (1.0 - 0.3 * out)), pos)
+		var squash := smoothstep(0.0, 0.25, t) * (1.0 - smoothstep(0.78, 1.0, t))
+		_deck_box.scale = Vector3(box_scale.x * (1.0 + 0.12 * squash), box_scale.y * (1.0 - 0.55 * squash), box_scale.z * (1.0 + 0.12 * squash))
+		_deck_top.visible = deck_count > 0 and squash < 0.2,
 		0.0, 1.0, SHUFFLE_TIME)
 	await tween.finished
+	_free_cards(_tornado)
+	_tornado = []
+	if epoch != _epoch:
+		return
 	_set_deck(deck_count)
+	# 叠好之后弹一下
+	var bounce := create_tween()
+	bounce.tween_method(func(v: float) -> void:
+		var k := sin(v * PI) * (1.0 - v)
+		_deck_box.scale = Vector3(1.0 - 0.1 * k, 1.0 + 0.45 * k, 1.0 - 0.1 * k)
+		_deck_top.position.y = BombCatLayout.deck_top(maxi(deck_count - 1, 0)).origin.y + BombCatLayout.stack_height(deck_count - 1) * 0.225 * k,
+		0.0, 1.0, SHUFFLE_BOUNCE)
+	await bounce.finished
+	if epoch == _epoch:
+		_set_deck(deck_count)
+
+
+func peek_rise(ids: Array, count: int, viewer: Vector3) -> void:
+	# 偷看:牌堆顶 count 张浮起来排成一把发金光的扇面,正面朝 viewer(偷看的人);ids 是这几张的牌面——
+	# 只有偷看的人自己传私有视图里的牌,别人传空(一律牌背)。浮在空中一会儿再落回牌堆(落回不阻塞)
+	_free_cards(_rising)
+	_rising = []
+	var shown := mini(maxi(count, 0), 3)
+	if shown == 0:
+		return
+	var top := BombCatLayout.deck_top(maxi(deck_count - 1, 0))
+	var to_viewer := to_local(viewer) - top.origin
+	to_viewer.y = 0.0
+	var facing := BombCatLayout.facing(to_viewer if to_viewer.length() > 0.01 else Vector3.BACK)
+	var right := facing.x.normalized()
+	for i in shown:
+		var id: String = ids[i] if i < ids.size() and BombCatCard.is_valid(str(ids[i])) else BombCatFaces.BACK
+		var card := _new_card(id, top.translated(Vector3.UP * 0.002 * (shown - i)))
+		card.name = "PeekRise%d" % i
+		_rising.append(card)
+		var k := float(i) - (shown - 1) / 2.0
+		var slot := Transform3D((Basis(to_viewer.normalized() if to_viewer.length() > 0.01 else Vector3.BACK, -k * 0.22) * facing) \
+			.scaled(Vector3.ONE * BombCatLayout.PILE_SCALE * 0.82), top.origin + right * k * PEEK_FAN_SPACING + Vector3(0, PEEK_FAN_HEIGHT - absf(k) * 0.02, 0))
+		var tween := card.create_tween()
+		tween.tween_interval(i * 0.05)
+		tween.tween_property(card, "transform", slot, PEEK_RISE).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.tween_callback(func() -> void: card.pulse_glow(Color(1.0, 0.86, 0.45), 1.6, 0.9))
+	sfx.emit("flip")
+	await _wait(PEEK_RISE + 0.05 * (shown - 1))
+
+
+func peek_sink() -> void:
+	# 浮起来的三张落回牌堆顶、消失(偷看的那段演完后调用,不阻塞)
+	var cards := rising_nodes()
+	_rising = []
+	var top := BombCatLayout.deck_top(maxi(deck_count - 1, 0))
+	for card in cards:
+		var tween: Tween = card.create_tween()
+		tween.tween_property(card, "transform", top, PEEK_SINK).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_callback(card.queue_free)
+
+
+func jiggle(strength := 1.0) -> void:
+	# 桌上的牌(牌堆、弃牌堆、飞行中的牌)一震:「不行!」盖章、爆炸
+	var tween := create_tween()
+	tween.tween_method(func(t: float) -> void:
+		var k := (1.0 - t) * strength
+		position = Vector3(sin(t * 55.0) * 0.006 * k, absf(sin(t * 38.0)) * 0.008 * k, cos(t * 47.0) * 0.005 * k), 0.0, 1.0, JIGGLE_TIME)
+	tween.tween_callback(func() -> void: position = Vector3.ZERO)
 
 
 func pulse_top(color: Color, peak := 1.8, duration := 0.5) -> void:
@@ -489,6 +607,7 @@ func _set_deck(count: int) -> void:
 	_deck_mesh.size = Vector3(size.x, maxf(h, 0.0005), size.y)
 	_deck_box.position = BombCatLayout.deck_position() + Vector3(0, h / 2.0, 0)
 	_deck_box.rotation = Vector3.ZERO
+	_deck_box.scale = Vector3.ONE
 	_deck_box.visible = deck_count > 1
 	_deck_top.transform = BombCatLayout.deck_top(deck_count - 1 if deck_count > 0 else 0)
 	_deck_top.visible = deck_count > 0

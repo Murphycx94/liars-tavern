@@ -82,7 +82,7 @@ func test_panel_sits_beside_the_side_panel_inside_the_screen():
 	var picker := _picker()
 	picker.open(FOX, {}, Rect2(48, 200, 480, 56), true)
 	var size := picker.panel_size()
-	assert_lte(size.x, 440.0, "面板宽不超过 440")
+	assert_lte(size.x, 480.0, "面板宽不超过 480(5×2 格;4×2 时是 440)")
 	assert_lte(size.y, 330.0)
 	var screen := picker.get_viewport_rect().size
 	var rect := Rect2(picker._panel.global_position, size)
@@ -99,9 +99,10 @@ func test_arrow_keys_wrap_inside_the_grid():
 	var picker := _picker()
 	picker.open(FOX, {}, Rect2(48, 200, 480, 56), true)
 	var first := picker.cell(0)
-	assert_eq(first.get_node(first.focus_neighbor_left), picker.cell(3), "左边回绕到行尾")
-	assert_eq(first.get_node(first.focus_neighbor_top), picker.cell(4), "上边回绕到下一行")
-	assert_eq(picker.cell(7).get_node(picker.cell(7).focus_neighbor_right), picker.cell(4))
+	# 5×2 格(10 个物种)
+	assert_eq(first.get_node(first.focus_neighbor_left), picker.cell(4), "左边回绕到行尾")
+	assert_eq(first.get_node(first.focus_neighbor_top), picker.cell(5), "上边回绕到下一行")
+	assert_eq(picker.cell(9).get_node(picker.cell(9).focus_neighbor_right), picker.cell(5))
 
 
 func test_escape_closes_and_returns_focus():

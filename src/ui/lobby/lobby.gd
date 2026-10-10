@@ -219,8 +219,9 @@ func _refresh(players: Array) -> void:
 	_fit_list()
 	var ready_count := players.filter(func(p): return p["ready"]).size()
 	_status.text = "%d/%d 人 · %d 人已准备" % [players.size(), Net.max_players(), ready_count]
-	if players.size() < Protocol.MIN_PLAYERS:
-		_status.text += " · 至少 %d 人才能开局" % Protocol.MIN_PLAYERS
+	var min_players := GameMode.min_players(Net.game_mode)   # 斗地主要 3 人
+	if players.size() < min_players:
+		_status.text += " · 至少 %d 人才能开局" % min_players
 	elif Net.is_host and not Net.can_start():
 		_status.text += " · 等待全员准备"
 	if _start_button != null:
@@ -245,6 +246,9 @@ func _apply_table_mode() -> void:
 		PokerFaces.build(self)
 	if GameMode.is_bomb_cat(_table_mode) and is_inside_tree():
 		BombCatFaces.build(self)   # 炸弹猫牌面同理(一批画完,约两帧)
+	if GameMode.is_dou_dizhu(_table_mode) and is_inside_tree():
+		PokerFaces.build(self)     # 斗地主:德州的 52 张牌面 + 两张王
+		DdzJokerFaces.build(self)
 	app.tavern.camera_rig.move_to(app.world.lobby_view(), CAMERA_MOVE_TIME)
 
 

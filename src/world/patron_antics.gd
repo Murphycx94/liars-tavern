@@ -8,7 +8,7 @@ extends Node
 # - 赢了:先眯眼笑,再挑眉毛、得意地左右晃脑袋;
 # - 被吓一跳(有人喊骗子、旁边有人中枪):原地一蹦、眼睛瞪圆、帽子弹起、耳朵炸开;
 # - 被番茄砸中:眯眼嫌弃、皱眉、摇头、吐舌头「呸」;说快捷语:头随每个音节轻点一下;
-# - 待机小动作:每 4–9 秒随机一个(东张西望、歪头、抖耳朵、甩尾巴、小蹦一下、挑一下眉),每个酒客各自的随机种子。
+# - 待机小动作:每 4–9 秒随机一个(东张西望、歪头、抖耳朵、甩尾巴、小蹦一下、挑一下眉;物种 LOOK anim.fidget 可加自己的:熊猫嚼竹枝 chew、企鹅晃脑袋 waddle),每个酒客各自的随机种子。
 # 便宜为先:不加灯、特效不投影;汗珠和星星各是一个 MultiMesh(网格、材质全体共用),舌头一个小网格,平时都隐藏;
 # 补间优先,逐帧只在发抖、冒汗、转星星时更新几个变换。场景树暂停(截图 --freeze)时 tick 与补间都停,跟随 Engine.time_scale。
 # 不碰 Patron 的举枪 / 放枪函数:是否「枪口对着自己」按 Patron 的状态判断(坐直且右手是握枪的拳头)。
@@ -219,6 +219,33 @@ func giggle(hold: float) -> void:
 	_ears_to(0.3, 0.1, 0.4)
 
 
+func bonked(hold: float) -> void:
+	# 炸弹猫「甩锅」:被平底锅敲中——蚊香眼晕 hold 秒、耳朵炸开、头往后一仰
+	if not _patron.alive:
+		return
+	_eye("dizzy", 1.0)
+	_after(hold, func():
+		if not _dead:
+			_eye("dizzy", 0.0))
+	var jolt := _track(create_tween())
+	jolt.tween_property(self, "head_add:x", -0.18, 0.06)
+	jolt.tween_property(self, "head_add:x", 0.0, 0.45).set_trans(Tween.TRANS_SINE)
+	_ears_to(-0.5, 0.05, 0.5)
+
+
+func plead(hold: float) -> void:
+	# 炸弹猫「讨要」:水汪汪的狗狗眼(眼睛着色器 plead)、歪头左右轻晃、耳朵往下耷拉
+	if not _patron.alive:
+		return
+	_eye_to("plead", 1.0, 0.15)
+	_after(hold, func(): _eye_to("plead", 0.0, 0.25))
+	var tilt := _track(create_tween())
+	tilt.tween_property(self, "head_add:z", 0.2, 0.18).set_trans(Tween.TRANS_SINE)
+	tilt.tween_property(self, "head_add:z", 0.12, maxf(hold - 0.4, 0.05)).set_trans(Tween.TRANS_SINE)
+	tilt.tween_property(self, "head_add:z", 0.0, 0.25).set_trans(Tween.TRANS_SINE)
+	_ears_to(0.3, 0.15, 0.5)
+
+
 func die() -> void:
 	# 出局:先转蚊香眼再定格 ×,星星在头顶一圈圈转,舌头吐在嘴角
 	_dead = true
@@ -342,7 +369,7 @@ func reset() -> void:
 	if _aiming:
 		_set_aiming(false)
 	head_add = Vector3.ZERO
-	for key in ["shock", "joy", "dizzy"]:
+	for key in ["shock", "joy", "dizzy", "plead"]:
 		_eye(key, 0.0)
 	_sweat.visible = false
 	_stars.visible = false
@@ -353,15 +380,28 @@ func reset() -> void:
 
 # —— 待机小动作 ——
 
-func _fidget() -> void:
+func fidget_kinds() -> Array:
 	var p := _patron
 	var kinds := ["look", "tilt", "bounce", "brow"]
 	if not p._ears.is_empty():
 		kinds.append("ears")
 	if not p._look_data.get("tail", {}).is_empty():
 		kinds.append("tail")
+	var own: String = p._look_data.get("anim", {}).get("fidget", "")
+	if own != "":
+		kinds.append_array([own, own])   # 物种自己的小动作(熊猫嚼竹枝、企鹅左右晃),抽中的机会多一倍
+	return kinds
+
+
+func _fidget() -> void:
+	var kinds := fidget_kinds()
+	play_fidget(kinds[_rng.randi() % kinds.size()])
+
+
+func play_fidget(kind: String) -> void:
+	var p := _patron
 	var tween := _track(create_tween())
-	match kinds[_rng.randi() % kinds.size()]:
+	match kind:
 		"look":   # 东张西望(幅度小:自己的头转来转去不该挡住手牌)
 			var side := 1.0 if _rng.randf() < 0.5 else -1.0
 			tween.tween_property(self, "head_add:y", 0.28 * side, 0.35).set_trans(Tween.TRANS_SINE)
@@ -382,6 +422,17 @@ func _fidget() -> void:
 			tween.kill()
 			_ears_to(-0.3, 0.07, 0.18)
 			_after(0.3, func(): _ears_to(-0.3, 0.07, 0.18))
+		"chew":   # 熊猫嚼嘴角的竹枝:头微微往上一抬一落四下,同时往竹枝那边歪一点(竹枝在头部网格里,跟着动)
+			tween.tween_property(self, "head_add:z", -0.08, 0.2).set_trans(Tween.TRANS_SINE)
+			for i in 4:
+				tween.tween_property(self, "head_add:x", -0.06, 0.09).set_trans(Tween.TRANS_SINE)
+				tween.tween_property(self, "head_add:x", 0.0, 0.11).set_trans(Tween.TRANS_SINE)
+			tween.tween_property(self, "head_add:z", 0.0, 0.3).set_trans(Tween.TRANS_SINE)
+		"waddle":   # 企鹅左右晃三下脑袋,像在冰上踱步
+			for i in 3:
+				var side := 1.0 if i % 2 == 0 else -1.0
+				tween.tween_property(self, "head_add:z", 0.15 * side, 0.18).set_trans(Tween.TRANS_SINE)
+			tween.tween_property(self, "head_add:z", 0.0, 0.22).set_trans(Tween.TRANS_SINE)
 		"tail":   # 甩一下尾巴
 			tween.kill()
 			_tail_fright(true)

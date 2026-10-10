@@ -170,7 +170,31 @@ func test_moon_sits_where_the_moonbeam_points_on_the_backdrop():
 
 
 func test_rug_sizes_feed_the_decor_shader():
+	# 2026-10-10 地毯重做:圆形主毯 + 条纹长毯 + 门口小毯;rug_sizes = (半宽, 半长, 包边 / 流苏宽, 款式)
 	var sizes := RoomLayout.rug_sizes()
-	assert_eq(sizes.size(), 2)
-	assert_almost_eq(sizes[0].y, 3.8, 1e-5, "主毯纵长 3.8 m")
-	assert_almost_eq(sizes[1].x, 0.8, 1e-5, "吧台长条毯横宽 0.8 m")
+	assert_eq(sizes.size(), 3, "decor 着色器 rug_sizes[3]")
+	assert_almost_eq(sizes[0].x, 1.75, 1e-5, "主毯半径 1.75 m")
+	assert_almost_eq(sizes[0].y, sizes[0].x, 1e-5, "主毯是圆的")
+	assert_almost_eq(sizes[1].x, 0.31, 1e-5, "吧台长条毯横宽 0.62 m")
+	assert_eq(sizes[1].w, 1.0, "1 号是条纹长毯")
+	assert_eq(RoomLayout.RUGS[0][0], Vector2.ZERO, "主毯圆心在原点(着色器绕原点放大)")
+
+
+func test_main_rug_grows_with_the_table_and_stays_off_the_runner():
+	# 小桌:椅子(座位 + 30 cm)整个落在毯上;德州 / 炸弹猫大桌同理,且放大后不压到吧台长条毯、不碰炉床
+	for table_radius in [SeatLayout.TABLE_RADIUS, SeatLayout.POKER_TABLE_RADIUS]:
+		var radius := RoomLayout.RUG_MAIN_RADIUS * RoomLayout.main_rug_scale(table_radius)
+		assert_gt(radius, SeatLayout.seat_radius_for(table_radius) + 0.3, "椅背落在毯上")
+		var runner: Array = RoomLayout.RUGS[1]
+		assert_lt(radius, -(runner[0].x + runner[1] / 2.0), "不压吧台长条毯")
+		assert_lt(radius, -RoomLayout.HEARTH[1].z, "不碰炉床")
+	assert_almost_eq(RoomLayout.main_rug_scale(SeatLayout.TABLE_RADIUS), 1.0, 1e-6)
+
+
+func test_door_mat_sits_inside_the_door_clear_of_the_piano_and_main_rug():
+	var mat: Array = RoomLayout.RUGS[2]
+	var c: Vector2 = mat[0]
+	assert_lt(c.y + mat[2] / 2.0, RoomLayout.prop_aabb("door").position.z, "门口小毯在门里")
+	assert_gt(c.x - mat[1] / 2.0, RoomLayout.prop_aabb("piano_bench").end.x, "不钻到琴凳下")
+	assert_gt(c.y - mat[2] / 2.0, RoomLayout.RUG_MAIN_RADIUS * RoomLayout.main_rug_scale(SeatLayout.POKER_TABLE_RADIUS) + 0.5,
+		"和放大后的主毯之间也留着一段地板")

@@ -50,7 +50,7 @@ func test_start_deals_and_opens_the_first_turn():
 	assert_eq(H.event_leak(ev), "")
 	assert_eq(ev["type"], "round_started")
 	assert_eq(ev["seats"], [5, 6, 7, 8])
-	assert_eq(ev["hands"], [{"pid": 5, "count": 8}, {"pid": 6, "count": 8}, {"pid": 7, "count": 8}, {"pid": 8, "count": 8}])
+	assert_eq(ev["hands"], [{"pid": 5, "count": 5}, {"pid": 6, "count": 5}, {"pid": 7, "count": 5}, {"pid": 8, "count": 5}])
 	assert_eq(ev["deck_count"], fresh.deck.size())
 	assert_eq(ev["bombs"], 3)
 	assert_true([5, 6, 7, 8].has(ev["current"]))

@@ -11,6 +11,8 @@ const SCRIPTS := [
 	preload("res://src/world/species/species_alpaca.gd"),
 	preload("res://src/world/species/species_monkey.gd"),
 	preload("res://src/world/species/species_crocodile.gd"),
+	preload("res://src/world/species/species_panda.gd"),
+	preload("res://src/world/species/species_penguin.gd"),
 ]
 
 # 调色板缺省项(物种没写就用这些);fur / muzzle / dark / coat / accent 每个物种都要写

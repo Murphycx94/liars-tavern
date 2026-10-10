@@ -5,11 +5,16 @@ extends Node
 # 离座 leave():拍特写、观战前调用,视角与补光还原。
 # 第一人称时自己的头只投影不渲染(Patron.set_head_hidden,只在本机):每帧看镜头是不是正在第一人称跟随、且已经到了眼睛附近,
 # 拍特写、观战、换屏时头一律露出来;酒客重建(复活、换形象)也按每帧的判断重新处理。
+# 不论视角,镜头钻进自己的头里(翻牌机位就在自己座位上方、开局运镜从后脑穿过去、探出去的头挡在特写前)时也藏头,
+# 免得满屏是自己的胡须、耳朵和帽子里面。
+# 离座时自己举着的牌扇收到桌面上空(Patron.set_fan_stowed),回座举回来;stow_fan_in_first_person 让第一人称时也收着。
 
 
 signal mode_changed(first_person: bool)
 
 const HEAD_CLEAR := 0.45   # 镜头离眼睛这么近才藏头:回座过渡刚开始时镜头还在远处,头照常看得见
+const HEAD_INSIDE := 0.42  # 镜头离自己的头心这么近就算钻进头里(大头半径约 0.3,加上耳朵、帽檐与胡须),不论视角都藏头
+const FP_COMFORT := 0.4    # 第一人称坐在座位上时自己的头在探头软碰撞里多算这么大一圈(Patron.guard_extra,只在本机)
 const TOAST_FIRST := "第一人称视角"
 const TOAST_THIRD := "越肩视角"
 const TOGGLE_MOVE := 0.35  # 在座位上切换视角的过渡时长(秒)
@@ -23,6 +28,8 @@ var first_person := false
 var _seated := false        # enter() 之后、leave() 之前:镜头归座位
 var _hidden: Patron = null  # 正藏着头的酒客
 var _entering: Tween = null # 回座运镜;导演会 await 它,切换视角不能把它打断
+# 第一人称时把自己的 3D 牌扇收起来(底部有 2D 手牌条当主要入口的玩法:斗地主),免得牌扇和手牌条叠在一起
+var stow_fan_in_first_person := false
 
 
 func _init(p_rig: CameraRig, p_world: TableWorld, p_my_pid: int, p_settings_path := Settings.PATH) -> void:
@@ -108,15 +115,23 @@ func _eye_target() -> Transform3D:
 # —— 藏头 ——
 
 func update_head() -> void:
-	# 只在「第一人称跟随中、镜头已到眼睛附近」时藏头;其余一律露出
+	# 「第一人称跟随中、镜头已到眼睛附近」或「镜头在自己头里」时藏头;其余一律露出
 	var me: Patron = world.patrons.get(my_pid)
-	var want: bool = me != null and is_instance_valid(me) and me.alive and _seated and first_person \
-		and rig.is_following(_eye_target) and rig.global_position.distance_to(me.eye_position()) < HEAD_CLEAR
+	var want := false
+	if me != null and is_instance_valid(me) and me.alive:
+		var fp_seated: bool = _seated and first_person and rig.is_following(_eye_target) \
+			and rig.global_position.distance_to(me.eye_position()) < HEAD_CLEAR
+		want = fp_seated or rig.global_position.distance_to(me.head_position()) < HEAD_INSIDE
 	if _hidden != null and (not is_instance_valid(_hidden) or _hidden != me or not want):
 		_show_head()
 	if want and not me.is_head_hidden():
 		me.set_head_hidden(true)
 		_hidden = me
+	# 镜头离开座位(特写、翻牌、观战)时自己举着的牌扇收到桌面上空,不挡镜头;回座再举起来。
+	# 第一人称时自己的头在软碰撞里多算一圈,别人的头不贴到镜头上(穿模修复 2026-10-10)
+	if me != null and is_instance_valid(me):
+		me.set_fan_stowed(not _seated or (first_person and stow_fan_in_first_person))
+		me.guard_extra = FP_COMFORT if _seated and first_person else 0.0
 
 
 func _show_head() -> void:

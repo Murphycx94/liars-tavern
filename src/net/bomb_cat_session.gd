@@ -69,6 +69,10 @@ static func check_intent(intent: Variant) -> String:
 	return ""
 
 
+func validate_intent(intent: Variant) -> String:
+	return check_intent(intent)
+
+
 func handle_intent(pid: int, intent: Dictionary) -> Dictionary:
 	if _state == null:
 		return rejected(BombCatState.ERR_MATCH_OVER)

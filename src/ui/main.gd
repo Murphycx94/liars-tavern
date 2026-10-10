@@ -8,6 +8,8 @@ const LobbyScreen := preload("res://src/ui/lobby/lobby.gd")
 const TableScreen := preload("res://src/ui/table/table_screen.gd")
 const PokerScreen := preload("res://src/ui/poker/poker_screen.gd")
 const BombCatScreen := preload("res://src/ui/bomb_cat/bomb_cat_screen.gd")
+const DouDizhuScreen := preload("res://src/ui/dou_dizhu/dou_dizhu_screen.gd")
+const LiarsDiceScreen := preload("res://src/ui/liars_dice/liars_dice_screen.gd")
 const VIEW_RESET_TIME := 0.8   # 切换屏幕时紧张度、闪光染色与镜头焦距回到平静的时长
 
 var tavern: Tavern
@@ -102,6 +104,9 @@ func _exit_tree() -> void:
 	CardFaces.clear()
 	PokerFaces.clear()
 	BombCatFaces.clear()
+	BombCatProps.clear_cache()
+	DdzJokerFaces.clear()
+	DdzProps.clear_cache()
 	WorldMaterials.clear_cache()
 	MeshKit.clear_cache()
 	MeshForge.clear_cache()
@@ -165,6 +170,14 @@ func _on_book_shown(book: String) -> void:
 			bomb_built.connect(_rulebook.refresh_card_faces)
 		BombCatFaces.build(_rulebook)
 		return
+	if book == RulebookContent.BOOK_DOU_DIZHU and not DdzJokerFaces.faces_ready() and is_instance_valid(_rulebook):
+		# 斗地主那本的牌型小图:德州 52 张 + 两张王,后台生成完让当前页重新取纹理
+		for sig in [PokerFaces.built_signal(), DdzJokerFaces.built_signal()]:
+			if not sig.is_connected(_rulebook.refresh_card_faces):
+				sig.connect(_rulebook.refresh_card_faces)
+		PokerFaces.build(_rulebook)
+		DdzJokerFaces.build(_rulebook)
+		return
 	if book != RulebookContent.BOOK_POKER or PokerFaces.is_built() or not is_instance_valid(_rulebook):
 		return
 	var built := PokerFaces.built_signal()
@@ -193,7 +206,7 @@ func is_rules_open() -> bool:
 
 func apply_table_mode(mode: String) -> void:
 	# 桌子跟着玩法走:德州桌更大,不摆烛台与目标牌立牌;主菜单与骗子酒馆用原来的桌子;
-	# 炸弹猫用骗子酒馆的桌子与烛台,不摆目标牌立牌(5–6 人的大桌由炸弹猫牌桌按本局人数再摆)
+	# 炸弹猫与吹牛骰子用骗子酒馆的桌子与烛台,不摆目标牌立牌(5–6 人的大桌由各自的牌桌按本局人数再摆)
 	var poker := GameMode.is_poker(mode)
 	world.configure_table(SeatLayout.table_radius_for(mode))
 	tavern.set_table_decor_visible(not poker)
@@ -218,9 +231,16 @@ func _show_lobby() -> void:
 
 
 func _show_table(_seats: Array) -> void:
-	# 按本房玩法选牌桌屏幕(game_started 发出之前 game_mode 已设好)
+	# 按本房玩法选牌桌屏幕(game_started 发出之前 game_mode 已设好);等待厅的进出提示到这里已经过时
+	toasts.clear()
 	if GameMode.is_bomb_cat(Net.game_mode):
 		_switch_to(BombCatScreen.new(self))
+		return
+	if GameMode.is_liars_dice(Net.game_mode):
+		_switch_to(LiarsDiceScreen.new(self))
+		return
+	if GameMode.is_dou_dizhu(Net.game_mode):
+		_switch_to(DouDizhuScreen.new(self))
 		return
 	_switch_to(PokerScreen.new(self) if GameMode.is_poker(Net.game_mode) else TableScreen.new(self))
 

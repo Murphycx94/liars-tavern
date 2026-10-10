@@ -130,6 +130,7 @@ func _ready() -> void:
 	_build_top_right()
 	_build_bottom()
 	showdown = ShowdownPanel.new()
+	showdown.add_to_group(WorldLabels.KEEP_OUT_GROUP)
 	add_child(showdown)
 	_build_my_panel()
 	_build_log()
@@ -139,6 +140,7 @@ func _ready() -> void:
 
 func _build_header() -> void:
 	header_panel = _corner_panel(Control.PRESET_TOP_LEFT, MARGIN)
+	header_panel.add_to_group(WorldLabels.KEEP_OUT_GROUP)   # 对话气泡让开底池与公共牌
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
 	header_panel.add_child(box)
@@ -157,6 +159,7 @@ func _build_top_right() -> void:
 	add_child(row)
 	row.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, int(MARGIN.x))
 	row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	row.add_to_group(WorldLabels.KEEP_OUT_GROUP)
 	end_button = UiTheme.button(END_TEXT)
 	end_button.add_theme_font_size_override("font_size", 15)
 	end_button.focus_mode = Control.FOCUS_NONE
@@ -275,6 +278,20 @@ func _corner_panel(preset: int, offset: Vector2) -> PanelContainer:
 
 
 # —— 更新 ——
+
+func preview_candidates() -> Array:
+	# 悬停大图的 2D 候选:左上公共牌条、左下自己的两张、右侧摊牌面板里每人亮的牌;大图让开牌所在的整块面板
+	var out := board_strip.preview_candidates(_screen_rect(header_panel))
+	out.append_array(my_strip.preview_candidates(_screen_rect(my_panel)))
+	var showdown_rect := _screen_rect(showdown)
+	for strip: CardStrip in showdown.strips():
+		out.append_array(strip.preview_candidates(showdown_rect))
+	return out
+
+
+static func _screen_rect(control: Control) -> Rect2:
+	return control.get_global_transform_with_canvas() * Rect2(Vector2.ZERO, control.size)
+
 
 func set_header(mode: String, blinds: Array, hand: int) -> void:
 	_title.text = title_text(mode, blinds, hand)

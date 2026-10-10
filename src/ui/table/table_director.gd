@@ -322,7 +322,7 @@ func _bubble(pid: int, text: String, color := UiTheme.INK) -> void:
 	var patron: Patron = world.patrons[pid]
 	app.labels.track(BUBBLE_KEY % pid, SpeechBubble.new(text, color),
 		func(): return patron.nameplate_anchor() if is_instance_valid(patron) else Vector3.ZERO,
-		Vector2(0, BUBBLE_ABOVE_PLATE))
+		Vector2(0, BUBBLE_ABOVE_PLATE), true)
 
 
 func _wait(seconds: float) -> void:

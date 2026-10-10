@@ -250,16 +250,38 @@ func test_head_hides_only_while_the_camera_is_at_the_eye():
 	assert_true(me.is_head_hidden(), "到了眼睛上:藏头")
 	cam.leave()
 	rig.move_to(world.focus_view(1), 0.5)   # 拍自己的特写(开枪)
-	await wait_seconds(0.1)
-	assert_false(me.is_head_hidden(), "离座拍特写:头马上露出来")
+	await wait_seconds(0.45)
+	assert_false(me.is_head_hidden(), "离座拍特写:镜头一出头就露出来")
 	await cam.enter(0.05).finished
 	await wait_seconds(0.2)
 	assert_true(me.is_head_hidden())
 	cam.toggle()
-	await wait_seconds(0.1)
-	assert_false(me.is_head_hidden(), "换回越肩")
-	await wait_seconds(0.5)
+	await wait_seconds(0.3)
+	assert_false(me.is_head_hidden(), "换回越肩:镜头退出头外就露出来")
+	await wait_seconds(0.3)
 	assert_lt(rig.global_position.distance_to(world.third_person_view(1).origin), 0.01, "回到越肩机位")
+
+
+func test_head_hides_whenever_the_camera_is_inside_it():
+	# 翻牌机位在自己座位上方(越肩视角也一样)、开局运镜穿过后脑:镜头在头里就藏头,出来就露出
+	_setup([{"pid": 1}, {"pid": 2}, {"pid": 3}])
+	var rig := _rig()
+	var cam := SeatCamera.new(rig, world, 1, SETTINGS)
+	add_child_autofree(cam)
+	cam.set_first_person(false, false)
+	await cam.enter(0.05).finished
+	await wait_seconds(0.1)
+	assert_false(me.is_head_hidden(), "越肩:头照常显示")
+	cam.leave()
+	var reveal := world.reveal_view(2)
+	assert_lt(reveal.origin.distance_to(me.head_position()), SeatCamera.HEAD_INSIDE, "前提:翻牌机位在自己头里")
+	rig.snap(reveal.origin, reveal.origin - reveal.basis.z)
+	await wait_seconds(0.1)
+	assert_true(me.is_head_hidden(), "翻牌机位:藏头,看不到自己的胡须和耳朵")
+	assert_false(world.patrons[2].is_head_hidden(), "别人的头不动")
+	rig.snap(world.overview_view().origin, Vector3.ZERO)
+	await wait_seconds(0.1)
+	assert_false(me.is_head_hidden(), "镜头离开:头露出来")
 
 
 func test_rebuilt_patron_gets_hidden_and_the_old_one_released():
@@ -401,7 +423,7 @@ func test_director_returns_to_the_first_person_seat_after_a_reveal():
 	var rig := director.rig
 	rig.move_to(world.reveal_view(2), 0.05)
 	await wait_seconds(0.6)
-	assert_false(me.is_head_hidden(), "翻牌机位:头露出来")
+	assert_true(me.is_head_hidden(), "翻牌机位就在自己头上:照样藏头(否则满屏是自己的胡须和耳朵)")
 	assert_almost_eq(rig.camera.fov, CameraRig.DEFAULT_FOV, 0.5, "特写按默认视角取景")
 	await director.back_to_seat(0.05)
 	await wait_seconds(0.3)

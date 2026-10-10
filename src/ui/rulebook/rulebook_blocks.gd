@@ -11,6 +11,13 @@ const TONES := {"brass": UiTheme.BRASS_BRIGHT, "truth": UiTheme.TRUTH, "lie": Ui
 const CARD_META := &"rulebook_card"
 const BOMB_CARD_META := &"rulebook_bomb_card"   # 炸弹猫牌面小图记着牌 id(字符串)
 const BOMB_CARD_SIZE := Vector2(60, 87)
+const DICE_SIZE := 34.0                    # 吹牛骰子示例的 2D 骰子
+const DICE_LABEL_WIDTH := 64.0
+
+# 斗地主牌型表与大小顺序:示例小牌互相压住一半(飞机带对 10 张也放得下)
+const DDZ_CARD_SIZE := Vector2(38, 55)
+const DDZ_CARD_OVERLAP := -16
+const DDZ_NAME_WIDTH := 230.0
 
 # 德州牌型表
 const HAND_CARD_SIZE := Vector2(40, 58)     # 规格 §6.6:示例小牌不超过 40×58
@@ -43,6 +50,12 @@ static func build(block: Dictionary) -> Control:
 			return _hands(block)
 		"bomb_cards":
 			return _bomb_cards(block["items"])
+		"dice":
+			return _dice(block)
+		"ddz_combos":
+			return _ddz_combos(block["items"])
+		"ddz_order":
+			return _ddz_order(block)
 	push_warning("说明书:未知的块类型 %s" % block["type"])
 	return Control.new()
 
@@ -63,6 +76,7 @@ static func _card_face(card: int, card_size: Vector2) -> TextureRect:
 	face.custom_minimum_size = card_size
 	face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	face.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS   # 从大纹理缩小很多倍:不用 mipmap 会出锯齿
 	return face
 
 
@@ -162,6 +176,33 @@ static func _bomb_cards(items: Array) -> Control:
 		col.add_child(_paragraph(item["text"], 15, UiTheme.PARCHMENT))
 		col.add_child(_paragraph(item["count"], 13, UiTheme.MUTED))
 	return grid
+
+
+# —— 吹牛骰子的开盅示例:每行名字 + 一排 2D 骰子,算进去的(等于 face 或 1 点)金边高亮 ——
+
+static func _dice(block: Dictionary) -> Control:
+	var face: int = block.get("face", 0)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	var total := 0
+	for item in block.get("items", []):
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		box.add_child(row)
+		var name_label := UiTheme.label(str(item.get("label", "")), 17, UiTheme.PARCHMENT_DIM, UiTheme.display_font())
+		name_label.custom_minimum_size = Vector2(DICE_LABEL_WIDTH, 0)
+		name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(name_label)
+		for v in item.get("dice", []):
+			var icon := DiceIcon.new(v, DICE_SIZE)
+			var hit: bool = face > 0 and (v == face or v == LiarsDiceState.WILD_FACE)
+			icon.set_state(hit, face > 0 and not hit)
+			if hit:
+				total += 1
+			row.add_child(icon)
+	if face > 0:
+		box.add_child(UiTheme.label("数「%d」:一共 %d 个" % [face, total], 19, UiTheme.BRASS_BRIGHT, UiTheme.display_font()))
+	return box
 
 
 # —— 二选一对照:出牌/质疑、真话/假话 ——
@@ -334,8 +375,7 @@ static func _hand_row(item: Dictionary) -> Control:
 	var cards := HBoxContainer.new()
 	cards.add_theme_constant_override("separation", HAND_CARD_GAP)
 	for card in item["cards"]:
-		var face := _card_face(card, HAND_CARD_SIZE)
-		face.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS   # 从大纹理缩小很多倍(规格 §5.3)
+		var face := _card_face(card, HAND_CARD_SIZE)   # 过滤方式在 _card_face 里统一设(规格 §5.3)
 		# 铺满牌位:牌面生成前的占位纹理是正方形,按比例居中会画成方块,换上真牌面时大小一跳
 		face.stretch_mode = TextureRect.STRETCH_SCALE
 		cards.add_child(face)
@@ -378,3 +418,46 @@ static func _place_cell(cell_name: String, text: String, color: Color) -> Label:
 static func _hand_cards_width() -> float:
 	var count := RulebookPoker.HAND_SIZE
 	return HAND_CARD_SIZE.x * count + HAND_CARD_GAP * (count - 1)
+
+
+# —— 斗地主:牌型表(两列,每行牌型名 + 说明 + 示例小牌)与大小顺序 ——
+
+static func _ddz_cards_row(ids: Array) -> HBoxContainer:
+	# 斗地主牌 id 的一排小牌(互相压住一半);牌面值记在 CARD_META 上,牌面生成完由 refresh_cards 重新取
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", DDZ_CARD_OVERLAP)
+	for id in ids:
+		var face := _card_face(DdzJokerFaces.face_kind(id), DDZ_CARD_SIZE)
+		face.stretch_mode = TextureRect.STRETCH_SCALE
+		row.add_child(face)
+	return row
+
+
+static func _ddz_combos(items: Array) -> Control:
+	# 一行一种:牌型名与一句说明在左(固定宽),示例小牌在右(同德州牌型表的底色条)
+	var grid := VBoxContainer.new()
+	grid.add_theme_constant_override("separation", 3)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	for item in items:
+		var cells := HBoxContainer.new()
+		cells.add_theme_constant_override("separation", 12)
+		var names := VBoxContainer.new()
+		names.custom_minimum_size.x = DDZ_NAME_WIDTH
+		names.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		names.add_theme_constant_override("separation", 0)
+		names.add_child(UiTheme.label(item["name"], 19, UiTheme.BRASS_BRIGHT, UiTheme.display_font()))
+		names.add_child(UiTheme.label(item["caption"], 12, UiTheme.MUTED))
+		cells.add_child(names)
+		var cards := _ddz_cards_row(item["cards"])
+		cards.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		cells.add_child(cards)
+		grid.add_child(_hands_line(cells, Color(0, 0, 0, 0.18), false))
+	return grid
+
+
+static func _ddz_order(block: Dictionary) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	box.add_child(_ddz_cards_row(block["cards"]))
+	box.add_child(_paragraph(block.get("caption", ""), 14, UiTheme.PARCHMENT_DIM))
+	return box

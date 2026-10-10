@@ -7,6 +7,7 @@ extends Node
 # stage_hud 再用同一份假视图喂 PokerHud / BetControls / 铭牌 / 摊牌面板(规格 §8 截图验收),HUD_STATES 列出底部区域的几种状态,
 # settlement 另在 HUD 上盖散局结算面板(10 行,其中 2 人已离开,列表要滚动)。
 
+const ShowcaseSpecies := preload("res://tools/showcase_species.gd")
 
 const ME := 1
 const SEATS := 8
@@ -50,7 +51,7 @@ func build(tavern: Tavern) -> void:
 	world.configure_table(SeatLayout.POKER_TABLE_RADIUS)
 	tavern.set_table_decor_visible(false)
 	world.cards.set_stand_visible(false)
-	world.arrange(range(1, SEATS + 1).map(func(pid): return {"pid": pid}), ME, true, false)
+	world.arrange(ShowcaseSpecies.players(range(1, SEATS + 1)), ME, true, false)
 	chips = PokerChips.new(world)
 	cards = PokerCards.new(world)
 	world.poker_root.add_child(chips)

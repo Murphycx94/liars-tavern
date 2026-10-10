@@ -286,7 +286,7 @@ func test_estimate_sums_the_pacing_budget():
 	var events := [{"type": "played"}, {"type": "noped"}, {"type": "window_resolved"},
 		{"type": "effect", "kind": "steal", "got": true}, {"type": "effect", "kind": "beg", "got": false},
 		{"type": "drew"}, {"type": "bomb_drawn"}, {"type": "exploded"}, {"type": "turn_passed"}, {"type": "match_over"}]
-	var expected := BombCatPacing.PLAYED + BombCatPacing.NOPED + BombCatPacing.WINDOW_RESOLVED + BombCatPacing.EFFECT_TRANSFER \
+	var expected := BombCatPacing.PLAYED + BombCatPacing.NOPED + BombCatPacing.WINDOW_RESOLVED + BombCatPacing.EFFECT_SNACK_TRANSFER \
 		+ BombCatPacing.EFFECT_MISS + BombCatPacing.DREW + BombCatPacing.BOMB_DRAWN + BombCatPacing.EXPLODED \
 		+ BombCatPacing.TURN_PASSED + BombCatPacing.MATCH_OVER
 	assert_almost_eq(session.estimate(events), expected, EPS)

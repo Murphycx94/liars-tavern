@@ -71,11 +71,14 @@ var _slides := {}        # pid -> Tween:正在沿圆弧滑向新座位的酒客
 var _spawned_frame := {} # pid -> 建出这个酒客的帧号:同一帧里物种又变了,直接收走刚建的、不再冒一次烟
 var _menu_preview: Patron = null   # 主菜单上自己选的形象,坐在 0 号椅
 var first_person := false          # 本机牌桌视角(只影响本机):seat_view / rest_view 据此给机位
+var third_person_override: Variant = null   # 越肩机位的 (右移, 高, 座位外):牌桌屏幕按玩法换(斗地主),为空时按桌子大小用默认值
 var celebration: Celebration = null   # 结算庆祝(胜者跳舞、旁人鼓掌、礼炮彩纸),见 celebration.gd
+var clip_guard: ClipGuard          # 穿模防护:探头的软碰撞形状(酒客、牌扇自动参与;玩法道具用 clip_guard.set_prop 登记)
 
 
 func _init(p_tavern: Tavern) -> void:
 	tavern = p_tavern
+	clip_guard = ClipGuard.new(self)
 	# 在 _init 里建:德州牌桌可能在本节点进树之前就要往里挂东西
 	poker_root = Node3D.new()
 	poker_root.name = "PokerRoot"
@@ -85,6 +88,7 @@ func _init(p_tavern: Tavern) -> void:
 func _ready() -> void:
 	cards = CardTable.new(self)
 	add_child(cards)
+	_guard_candles()
 	banter = BanterFx.new(self)
 	add_child(banter)
 	# 主菜单第一眼不再是一张光秃秃的桌子:没有酒客时摆上空椅子(共用酒客椅子的网格)
@@ -187,6 +191,8 @@ func _place_patron(pid: int, angle: float, species := LOCAL_SPECIES) -> void:
 		species = Species.first_free(used)
 	var patron := Patron.new(species)
 	patron.transform = xform
+	patron.guard = clip_guard
+	patron.guard_id = pid
 	add_child(patron)
 	patron.appear()
 	patrons[pid] = patron
@@ -202,6 +208,8 @@ func _swap_patron(pid: int, species: int, xform: Transform3D) -> void:
 	_slides.erase(pid)
 	var fresh := Patron.new(species)
 	fresh.transform = xform
+	fresh.guard = clip_guard
+	fresh.guard_id = pid
 	fresh.visible = old.visible
 	add_child(fresh)
 	if _spawned_frame.get(pid, -1) == Engine.get_process_frames():
@@ -425,6 +433,7 @@ func clear_poker() -> void:
 			if child is Card3D and not liars_cards.has(child):
 				fan.remove_child(child)
 				child.queue_free()
+	third_person_override = null   # 斗地主换过的越肩机位也回到默认
 
 
 func _clear_debris() -> void:
@@ -432,6 +441,18 @@ func _clear_debris() -> void:
 	for child in get_children():
 		if child.is_in_group(Patron.DEBRIS_GROUP):
 			child.queue_free()
+
+
+func _guard_candles() -> void:
+	# 桌上的烛台(酒馆的摆设,德州时收起):头从上面拱过去。没有酒馆(单元测试)时不登记
+	if tavern == null:
+		return
+	var holders := tavern.table_decor()
+	for i in holders.size():
+		var holder: Node3D = holders[i]
+		var at := to_local(holder.global_position)
+		clip_guard.set_prop(StringName("candles_%d" % i), ClipGuard.circle(at, CandlesProp.DISH_RADIUS, CandlesProp.top_height(),
+			ClipGuard.LIFT, holder))
 
 
 # —— 几何查询 ——
@@ -490,6 +511,8 @@ func third_person_view(pid: int) -> Transform3D:
 	var dir := SeatLayout.direction(angle)
 	var offset := Vector3(THIRD_PERSON_SIDE, THIRD_PERSON_HEIGHT, THIRD_PERSON_BEHIND) \
 		if table_radius <= SeatLayout.TABLE_RADIUS else POKER_THIRD_PERSON
+	if third_person_override is Vector3:
+		offset = third_person_override
 	var pos := dir * (seat_radius + offset.z) + seat_right(pid) * offset.x + Vector3(0, offset.y, 0)
 	var target := -dir * 0.12 + Vector3(0, SeatLayout.TABLE_TOP, 0)
 	return Transform3D(Basis.looking_at(target - pos, Vector3.UP), pos)

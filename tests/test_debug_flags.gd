@@ -86,3 +86,8 @@ func test_session_over_line_reports_my_net_and_the_sum():
 	assert_eq(DebugFlags.net_of(results, 42), 0, "不在结算里(没入座就散局)按 0")
 	assert_eq(DebugFlags.net_sum(results), 0)
 	assert_eq(DebugFlags.net_sum([{"pid": 1, "net": 10}, {"pid": 2}]), 10, "缺字段的行不算")
+
+
+func test_ddz_results_line_sorts_by_pid_and_sums():
+	var line := DebugFlags.ddz_results_line([{"pid": 9, "score": -6}, {"pid": 1, "score": 12}, {"pid": 4, "score": -6}, {"pid": 5}, "x"])
+	assert_eq(line, "[debug] DDZ_RESULTS {1: 12, 4: -6, 9: -6} sum=0")

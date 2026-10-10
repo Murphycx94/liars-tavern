@@ -99,11 +99,13 @@ func test_rpc_table_is_four_reliable_methods():
 		assert_false(config[name]["call_local"], name)
 
 
-func test_protocol_number_is_v8():
+func test_protocol_number_is_v10():
 	# 德州单独随 0.7.0 用 v5 发布;丢番茄、快捷语、自选形象、炸弹猫随 0.8.0 升到 v6;
 	# 上游的九宫格快捷对话也叫 v6 但 RPC 表不同,两边合并后升到 v7,两种 v6 都不能同桌
-	# 再之后德州加了「开始下一手」与牌局记录(意图 next、事件 next_ready / hand_record),升到 v8
-	assert_eq(Protocol.VERSION, 8)
+	# 再之后德州加了「开始下一手」与牌局记录(意图 next、事件 next_ready / hand_record),升到 v8(0.9.1);
+	# 新玩法吹牛骰子与斗地主的 id 旧版本不认识(RPC 表没变,吹牛骰子走现有的 rpc_session_intent),升到 v9;
+	# 新形象熊猫、企鹅(物种下标 8、9)v9 客户端不认识,升到 v10
+	assert_eq(Protocol.VERSION, 10)
 
 
 # —— 丢番茄 ——

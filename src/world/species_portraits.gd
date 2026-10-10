@@ -1,7 +1,7 @@
 class_name SpeciesPortraits
 # 物种头像(主菜单与等待厅的 SpeciesChip / SpeciesPicker 用):texture(i) 取第 i 个物种的头像。
-# 头像是 3D 烘焙的:主菜单出来后在一个独立的 SubViewport 里摆 8 位酒客,正交相机拍一排头,读回后
-# 每格叠在物种主色的圆片上,切成 8 张图。烘好之前(以及无头运行时)用回退圆片(SpeciesChip 在上面叠物种首字);
+# 头像是 3D 烘焙的:主菜单出来后在一个独立的 SubViewport 里摆全部物种(10 位酒客),正交相机拍一排头,读回后
+# 每格叠在物种主色的圆片上,切成一张张图。烘好之前(以及无头运行时)用回退圆片(SpeciesChip 在上面叠物种首字);
 # SpeciesChip 轮询 is_built(),烘好后换图。
 
 
@@ -24,6 +24,8 @@ const FALLBACK_COLORS := [
 	Color(0.78, 0.66, 0.50),   # 羊驼
 	Color(0.42, 0.26, 0.14),   # 猴子
 	Color(0.24, 0.46, 0.22),   # 鳄鱼
+	Color(0.50, 0.66, 0.40),   # 熊猫:竹青(黑白的头在白圆片上不显,换成竹子的颜色)
+	Color(0.42, 0.60, 0.76),   # 企鹅:冰蓝(藏青的头在藏青圆片上不显)
 ]
 
 static var _textures: Array = []   # 下标 = 物种;build 之后才有
@@ -70,7 +72,7 @@ static func build(host: Node) -> void:
 
 
 static func _make_stage() -> Node:
-	# 烘焙台:独立世界、透明背景,8 位酒客一字排开面朝镜头;主光 + 补光 + 轮廓光,色调与酒馆一致
+	# 烘焙台:独立世界、透明背景,全部酒客一字排开面朝镜头;主光 + 补光 + 轮廓光,色调与酒馆一致
 	var stage := Node.new()
 	stage.name = "PortraitStage"
 	var viewport := SubViewport.new()

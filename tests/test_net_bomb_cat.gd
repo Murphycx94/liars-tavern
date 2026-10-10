@@ -93,7 +93,7 @@ func test_start_game_builds_a_bomb_cat_session():
 	assert_almost_eq(net._turn_timer.time_left, expected, EPS, "开局 = 开场运镜 + 发牌 + 一个回合")
 	assert_almost_eq(net.last_public["turn_time_left"], expected, EPS)
 	assert_eq(net.last_public["mode"], GameMode.BOMB_CAT)
-	assert_eq(net.last_private["hand"].size(), 8, "房主自己的私有视图")
+	assert_eq(net.last_private["hand"].size(), BombCatDeck.HAND_SIZE + 1, "房主自己的私有视图")
 	for id in GUESTS:
 		assert_eq(_private_to(id)["hand"], _state().hand_of(id), "每位客人只收到自己的手牌")
 		assert_eq(H.view_leak(_public_to(id)), "")

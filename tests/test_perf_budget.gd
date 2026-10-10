@@ -48,3 +48,19 @@ func test_celebration_views_have_budgets():
 	# 结算庆祝(perf_probe --celebrate):礼炮、彩纸、音符都在场时,两个环绕机位同其余机位 ≤ 900 draw call
 	for view in ["celebrate", "celebrate_table"]:
 		assert_eq(PerfBudget.LIMITS[view]["draw_calls"], 900, view)
+
+
+func test_liars_dice_views_have_budgets():
+	# 吹牛骰子 6 人桌:座位与第一人称 ≤ 700 draw call(同越肩),俯视与特写同其余机位
+	assert_eq(PerfBudget.LIMITS["dice_seat"]["draw_calls"], 700)
+	assert_eq(PerfBudget.LIMITS["dice_fp"]["draw_calls"], 700)
+	assert_eq(PerfBudget.LIMITS["dice_overview"]["draw_calls"], 900)
+	assert_eq(PerfBudget.LIMITS["dice_close"]["draw_calls"], 900)
+	assert_eq(PerfBudget.violations("dice_seat", {"draw_calls": 701}).size(), 1)
+
+
+func test_dou_dizhu_views_have_budgets():
+	# 斗地主 3 人小桌:座位与第一人称 ≤ 700 draw call(同越肩),俯视同其余机位
+	assert_eq(PerfBudget.LIMITS["ddz_seat"]["draw_calls"], 700)
+	assert_eq(PerfBudget.LIMITS["ddz_fp"]["draw_calls"], 700)
+	assert_eq(PerfBudget.LIMITS["ddz_overview"]["draw_calls"], 900)

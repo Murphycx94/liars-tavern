@@ -1,6 +1,8 @@
 extends Node
 # 截图用展台:4 名酒客落座、发牌、出牌区与翻牌行,用于检查角色与道具外观(tools/shot.gd --showcase)。
 
+const ShowcaseSpecies := preload("res://tools/showcase_species.gd")
+
 var world: TableWorld
 
 
@@ -9,10 +11,7 @@ func build(tavern: Tavern) -> void:
 	Card3D.refresh_materials()
 	world = TableWorld.new(tavern)
 	tavern.table_root.add_child(world)
-	var players := []
-	for pid in [1, 2, 3, 4]:
-		players.append({"pid": pid})
-	world.arrange(players, 1, true, true)
+	world.arrange(ShowcaseSpecies.players([1, 2, 3, 4]), 1, true, true)
 	var me: Patron = world.patrons[1]
 	me.present_hand_to(world.third_person_view(1).origin)
 	world.cards.attach_hand(me.fan)

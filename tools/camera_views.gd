@@ -7,7 +7,8 @@ const NAMES := ["seat", "selfshot", "gun", "menu", "overhead", "fireplace", "bar
 	"focus0", "focus90", "focus180", "focus270", "focus120", "focus240", "door", "corner", "corner_front"]
 # 第一人称机位(要展台的牌桌,shot.gd / perf_probe.gd 另行处理,不进 NAMES):名字 -> 脖子偏移(座位坐标,模拟按住 WASD 探头)
 const FIRST_PERSON := {"fp": Vector3.ZERO, "fp_peek": Vector3(0.45, 0, -0.35), "fp_lean": Vector3(0, 0, -0.6),
-	"poker_fp": Vector3.ZERO, "poker_fp_peek": Vector3(-0.4, 0, -0.3), "bomb_fp": Vector3.ZERO}
+	"poker_fp": Vector3.ZERO, "poker_fp_peek": Vector3(-0.4, 0, -0.3), "bomb_fp": Vector3.ZERO,
+	"dice_fp": Vector3.ZERO, "ddz_fp": Vector3.ZERO}
 # 特写机位(复刻 TableWorld.focus_view:镜头在桌心斜上方、偏向座位左侧,看向座位上的头):名字 -> 座位角(度)
 const FOCUS := {"focus0": 0.0, "focus90": 90.0, "focus180": 180.0, "focus270": 270.0, "focus120": 120.0, "focus240": 240.0}
 
@@ -82,19 +83,21 @@ static func place(rig: CameraRig, view: String) -> bool:
 			rig.snap(Vector3(0.78, 1.42, -0.62), Vector3(1.22, 1.33, -0.3))
 		"flash":
 			rig.snap(Vector3(0.1, 1.42, 0.3), Vector3(1.25, 1.25, 0.0))
-		# --lineup:8 个物种一字排开在 x ∈ [-2.73, 2.73]、z = 1.5,面朝 +Z;
-		# 正面机位要留在前墙(z = 4.5)里面,66° 竖直视角在 16:9 下 2.8 m 外横向能看到 6.4 m
+		# --lineup:10 个物种一字排开在 x ∈ [-3.15, 3.15]、z = 1.5,面朝 +Z(间距 shot.gd LINEUP_SPACING 0.7);
+		# 正面机位要留在前墙(z = 4.5)里面,竖直视角放到 80°:16:9 下 2.8 m 外横向能看到 ≈8 m(8 个物种时 66° / 6.4 m)
 		"lineup_front":
+			rig.camera.fov = 80.0
 			rig.snap(Vector3(0, 1.3, 4.3), Vector3(0, 0.85, 1.5))
 		"lineup_back":
+			rig.camera.fov = 80.0
 			rig.snap(Vector3(0, 1.4, -2.0), Vector3(0, 0.8, 1.5))
 		"lineup_heads":
-			rig.camera.fov = 62.0
+			rig.camera.fov = 76.0
 			rig.snap(Vector3(0, 1.42, 4.3), Vector3(0, 1.38, 1.5))
 		"lineup_left":
-			rig.snap(Vector3(-1.56, 1.35, 3.1), Vector3(-1.56, 1.0, 1.5))
+			rig.snap(Vector3(-1.75, 1.35, 3.1), Vector3(-1.75, 1.0, 1.5))
 		"lineup_right":
-			rig.snap(Vector3(1.56, 1.35, 3.1), Vector3(1.56, 1.0, 1.5))
+			rig.snap(Vector3(1.75, 1.35, 3.1), Vector3(1.75, 1.0, 1.5))
 		"door":
 			rig.snap(Vector3(0.9, 1.55, 1.0), Vector3(-0.35, 1.25, 4.4))
 		"corner":

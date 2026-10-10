@@ -1,6 +1,7 @@
 extends Node
 # 网络管理(autoload "Net"):房主权威 listen-server。
-# 房主持有等待厅名单与唯一的会话对象(LiarsSession / PokerSession / BombCatSession,规格 §4.2);客户端只发意图、收视图与事件。
+# 房主持有等待厅名单与唯一的会话对象(LiarsSession / PokerSession / BombCatSession / LiarsDiceSession / DouDizhuSession,
+# 规格 §4.2);客户端只发意图、收视图与事件。
 # 这里只管连接、等待厅、RPC 收发与计时器,玩法逻辑都在会话里。
 # UI 层只使用本类的公开方法、只读属性与信号,不直接触碰 multiplayer API。
 # 点对点的 RPC 一律经 _send_to 发出:对方没连着就不发(离线测试里对未知 peer 调 rpc_id 会报引擎错误)。
@@ -46,7 +47,7 @@ var _room_id := ""
 var _room_name := ""
 var _port := Protocol.GAME_PORT
 var _turn_timer: Timer = null
-var _hand_timer: Timer = null      # 仅房主(德州):一手之间的间隔,到点开下一手
+var _hand_timer: Timer = null      # 仅房主(德州、斗地主):一手之间的间隔,到点开下一手
 var _join_timer: Timer = null
 var _anim_left := 0.0              # 仅房主:客户端还要演多久(按 Pacing 预算估),随时间递减
 var _species_asked_at := {}        # 仅房主:peer_id -> 上次换形象请求的时刻(毫秒),冷却用
@@ -457,7 +458,7 @@ func _species_cooling_down(id: int) -> bool:
 
 
 func can_start() -> bool:
-	return is_host and not in_game and _lobby != null and _lobby.can_start()
+	return is_host and not in_game and _lobby != null and _lobby.can_start(GameMode.min_players(game_mode))
 
 
 func _lobby_meta() -> Dictionary:
@@ -569,11 +570,15 @@ func start_game() -> void:
 
 
 static func _new_session(mode: String) -> GameSession:
-	# 按玩法建会话:德州(长牌 / 短牌)、炸弹猫,其余是骗子酒馆
+	# 按玩法建会话:德州(长牌 / 短牌)、炸弹猫、吹牛骰子、斗地主,其余是骗子酒馆
 	if GameMode.is_poker(mode):
 		return PokerSession.new(mode)
 	if GameMode.is_bomb_cat(mode):
 		return BombCatSession.new()
+	if GameMode.is_liars_dice(mode):
+		return LiarsDiceSession.new()
+	if GameMode.is_dou_dizhu(mode):
+		return DouDizhuSession.new()
 	return LiarsSession.new()
 
 
@@ -697,7 +702,8 @@ func request_sit_in() -> void:
 
 
 func end_poker_session() -> void:
-	# 仅房主:有进行中的手牌就打完这一手再结算(规格 §2.9);骗子酒馆与已在散局的德州没有事件
+	# 仅房主:有进行中的手牌就打完这一手再结算(规格 §2.9);斗地主的「散局」也走这里(DouDizhuSession.request_end)。
+	# 骗子酒馆、炸弹猫与已在散局的牌局没有事件
 	if not is_host or not in_game or _session == null:
 		return
 	var events := _session.request_end()
@@ -725,8 +731,8 @@ func _handle_poker_rpc(pid: int, action: Variant, amount: Variant) -> void:
 	_handle_intent(pid, {"kind": action, "amount": amount})
 
 
-# —— 意图(字典式,目前只有炸弹猫,设计稿 §2):{"kind": "play" | "nope" | "draw" | "reinsert" | "give", ...} ——
-# 骗子酒馆与德州仍走各自的 RPC(行为不变);这个入口在别的玩法里一律拒绝
+# —— 意图(字典式,炸弹猫、吹牛骰子与斗地主,设计稿 §2):{"kind": ..., ...},结构校验交给会话的 validate_intent ——
+# 骗子酒馆与德州仍走各自的 RPC(行为不变);它们的会话不覆盖 validate_intent,这个入口一律拒绝(invalid_intent)
 
 func submit_session_intent(intent: Dictionary) -> void:
 	if not in_game:
@@ -751,10 +757,8 @@ func _handle_session_rpc(pid: int, intent: Variant) -> void:
 	var error := ""
 	if not _lobby.has(pid):
 		error = "not_seated"
-	elif not GameMode.is_bomb_cat(game_mode):
-		error = BombCatState.ERR_INVALID_INTENT
 	else:
-		error = BombCatSession.check_intent(intent)
+		error = _session.validate_intent(intent)
 	if error != "":
 		_reject(pid, error)
 		return
@@ -799,7 +803,7 @@ func _after_action(events: Array, turn_action := false) -> void:
 
 
 func _schedule_hand_timer() -> void:
-	# 德州两手之间:演完这一批再停顿 hand_gap()(有输光者没做选择时更长)。
+	# 德州 / 斗地主两手之间:演完这一批再停顿 hand_gap()(德州有输光者没做选择时更长)。
 	# 已排期时只会提前(输光者选完了间隔变短),不会推迟到比原计划更晚
 	if _session.is_over() or not _session.next_hand_ready():
 		_hand_timer.stop()
@@ -902,7 +906,7 @@ func rpc_quip_shown(pid, index) -> void:
 
 
 # —— 回合限时(仅房主):超时代打由会话决定(骗子酒馆出手牌第一张;德州能过牌就过牌,否则弃牌;
-# 炸弹猫按步骤:结算反应窗口 / 随机塞回 / 随机给牌 / 直接摸牌) ——
+# 炸弹猫按步骤:结算反应窗口 / 随机塞回 / 随机给牌 / 直接摸牌;吹牛骰子按最小合法加注,加不上去就「开!」) ——
 
 func _on_turn_timeout() -> void:
 	if _session == null or not _session.has_turn():

@@ -1,7 +1,7 @@
 class_name BombCatHandStrip
 extends Control
 # 炸弹猫底部的 2D 手牌条(规格 §3.2,操作主入口;3D 牌扇只是好看):每张牌一张牌面小图,左上角标快捷键数字(1–9),
-# 点一下选中(抬起 + 金边),悬停微抬。牌多时互相压住一部分,整条不超过 MAX_WIDTH。
+# 点一下选中(抬起 + 金边),悬停微抬(牌名与说明由 CardPreview 的悬停大图给出)。牌多时互相压住一部分,整条不超过 MAX_WIDTH。
 # 只发信号(card_clicked / card_hovered),选不选得上由牌桌按规则决定;牌面纹理生成完(BombCatFaces.built)重新取。
 
 
@@ -63,6 +63,22 @@ func card_count() -> int:
 	return _cards.size()
 
 
+func preview_candidates() -> Array:
+	# 悬停大图(CardPreview)的候选:每张牌的屏幕矩形 + 牌名与说明(取代原来的文字提示框);后面的牌压在前面的上面。
+	# 大图让开整条手牌条(不挡住旁边的牌)
+	var out := []
+	if not is_visible_in_tree():
+		return out
+	var strip_rect := get_global_transform_with_canvas() * Rect2(Vector2.ZERO, size)
+	for i in _cards.size():
+		var card := _cards[i]
+		var rect := card.get_global_transform_with_canvas() * Rect2(Vector2.ZERO, card.size)
+		var caption := CardPreview.bomb_caption(_ids[i])
+		out.append(CardPreview.rect_candidate(rect, card.texture, i, card.get_instance_id(), caption["title"],
+			caption["body"], strip_rect))
+	return out
+
+
 func flash(index: int) -> void:
 	# 新摸到 / 抢来的那张闪一下金边
 	if index < 0 or index >= _cards.size():
@@ -92,7 +108,6 @@ func _rebuild() -> void:
 		card.size = CARD_SIZE
 		card.mouse_filter = Control.MOUSE_FILTER_STOP
 		card.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		card.tooltip_text = "%s:%s" % [BombCatCard.display_name(_ids[i]), BombCatCard.description(_ids[i])]
 		card.gui_input.connect(_on_card_input.bind(i))
 		card.mouse_entered.connect(_on_hover.bind(i, true))
 		card.mouse_exited.connect(_on_hover.bind(i, false))

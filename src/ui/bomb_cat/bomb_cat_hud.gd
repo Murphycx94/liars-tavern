@@ -153,6 +153,7 @@ func _build_info() -> void:
 	panel.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	panel.position = Vector2(20, 16)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_to_group(WorldLabels.KEEP_OUT_GROUP)   # 对话气泡让开左上信息
 	add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 2)
@@ -186,6 +187,7 @@ func _build_rules_button() -> void:
 	add_child(row)
 	row.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
 	row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	row.add_to_group(WorldLabels.KEEP_OUT_GROUP)
 	row.add_child(_top_button("对话 · %s" % OS.get_keycode_string(Quips.TOGGLE_KEY), quip_pressed))
 	row.add_child(_top_button("规则 · %s" % OS.get_keycode_string(RulebookContent.HOTKEY), rules_pressed))
 

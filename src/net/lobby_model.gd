@@ -69,8 +69,9 @@ func reset_ready() -> void:
 		_members[id]["ready"] = id == HOST_ID
 
 
-func can_start() -> bool:
-	if _members.size() < Protocol.MIN_PLAYERS:
+func can_start(min_players := Protocol.MIN_PLAYERS) -> bool:
+	# min_players:本房玩法的开局人数下限(GameMode.min_players,斗地主为 3;上限由 check_join 把关)
+	if _members.size() < min_players:
 		return false
 	for id in _members:
 		if not _members[id]["ready"]:

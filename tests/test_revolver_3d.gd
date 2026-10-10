@@ -144,7 +144,7 @@ func test_guns_share_meshes_and_stay_in_budget():
 	var surfaces := 0
 	for inst: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
 		surfaces += inst.mesh.get_surface_count()
-	assert_eq(surfaces, 4, "机身两个 surface(钢件 + 胡桃木握把),转轮与击锤各一个")
+	assert_eq(surfaces, 3, "机身、转轮、击锤各一个 prop surface(握把换成糖果色顶点色,不再单开木纹 surface)")
 	for name in ["Body/BodyMesh", "Body/Drum/DrumMesh", "Body/Hammer/HammerMesh"]:
 		assert_same(a.get_node(name).mesh, b.get_node(name).mesh, name)
 

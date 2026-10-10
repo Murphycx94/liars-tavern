@@ -26,6 +26,7 @@ instance uniform float lashes = 0.0;
 instance uniform float shock = 0.0;                // 吓到:眼睑全开、瞳孔缩成小黑点(枪口抵头、被喊骗子)
 instance uniform float joy = 0.0;                  // 眯眼笑:眼睛画成 ^ 形弯线(松一口气、得意)
 instance uniform float dizzy = 0.0;                // 晕乎乎:虹膜换成旋转的蚊香圈(中弹出局,和 × 交替)
+instance uniform float plead = 0.0;                // 狗狗眼:瞳孔放大、眼睑全开、多两颗高光、下眼眶一弯泪光(炸弹猫讨要)
 
 const vec3 SCLERA = vec3(0.74, 0.73, 0.7);    // 同 PatronParts.EYE_WHITE:奶白,不发蓝不过曝
 const vec3 PUPIL = vec3(0.06, 0.045, 0.06);   // 深靛黑,不用纯黑
@@ -52,8 +53,8 @@ void fragment() {
 	// 瞳孔:竖着的大椭圆;猫、鳄鱼更窄(动森式圆瞳加一点细长),羊驼横宽
 	vec2 pupil_scale = pupil_shape > 1.5 ? vec2(0.95, 1.25) : (pupil_shape > 0.5 ? vec2(1.75, 0.92) : vec2(1.05, 0.9));
 	// 虹膜圈占眼睛的大部分,瞳孔又占虹膜的大部分;吓到时整团缩成针尖
-	float iris_r = mix(0.74, 0.36, shock);
-	float pupil_r = mix(0.6, 0.14, shock);
+	float iris_r = mix(mix(0.74, 0.36, shock), 0.8, plead);
+	float pupil_r = mix(mix(0.6, 0.14, shock), 0.7, plead);
 	vec2 qi = q * vec2(1.0, 0.92);
 	float iris = 1.0 - aa_step(iris_r, length(qi));
 	float pupil = 1.0 - aa_step(pupil_r, length(q * mix(pupil_scale, vec2(1.0), shock)));
@@ -65,8 +66,13 @@ void fragment() {
 	col = mix(col, iris_col, iris * open_eye);
 	col = mix(col, pupil_col, pupil * open_eye);
 	// 两个高光:左上一大、右下一小,跟着瞳孔走
-	float spark = 1.0 - aa_step(0.2, length((q - vec2(-0.24, 0.27)) * vec2(1.0, 0.9)));
+	float spark = 1.0 - aa_step(0.2 + 0.07 * plead, length((q - vec2(-0.24, 0.27)) * vec2(1.0, 0.9)));
 	spark = max(spark, 1.0 - aa_step(0.09, length(q - vec2(0.2, -0.2))));
+	// 狗狗眼:再多两颗小高光,下沿一弯水汪汪的泪光
+	float extra = max(1.0 - aa_step(0.1, length(q - vec2(0.24, 0.3))), 1.0 - aa_step(0.06, length(q - vec2(-0.32, -0.08))));
+	spark = max(spark, extra * plead);
+	float tear = (1.0 - aa_step(0.07, abs(length(qi) - iris_r * 0.82))) * smoothstep(-0.2, -0.5, q.y);
+	col = mix(col, vec3(0.62, 0.84, 0.97), tear * iris * open_eye * plead);
 	col = mix(col, vec3(0.97), spark * iris * open_eye * (1.0 - 0.6 * shock));
 	// 晕乎乎:眼面画一圈旋转的蚊香(阿基米德螺线),出局时和 × 交替出现
 	float r = length(uv);
@@ -81,7 +87,7 @@ void fragment() {
 	col = mix(col, lid_color, joy);
 	col = mix(col, PUPIL, (1.0 - aa_step(0.11, arc)) * step(abs(uv.x), 0.8) * joy);
 	// 上眼睑:从上往下盖,lid_tilt 让内外眼角高低不同(side 区分左右,x 朝外为正);吓到时眼睑全开
-	float rest = lid_rest * LID_REST_SCALE * (1.0 - shock);
+	float rest = lid_rest * LID_REST_SCALE * (1.0 - shock) * (1.0 - plead);
 	float cover = (max(lid, rest) + lid_tilt * (uv.x * side) * 0.6) * (1.0 - joy);
 	float lid_edge = 1.0 - 2.0 * clamp(cover, 0.0, 1.0);
 	float covered = aa_step(lid_edge, uv.y);

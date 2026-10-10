@@ -819,10 +819,12 @@ func raw(points: PackedVector3Array, normals: PackedVector3Array, uvs: PackedVec
 
 
 func extrude(outline: PackedVector2Array, depth: float, bevel := 0.0, t := Transform3D.IDENTITY,
-		caps := Vector2i(1, 1), crease_deg := 40.0) -> MeshForge:
+		caps := Vector2i(1, 1), crease_deg := 40.0, round_steps := 1) -> MeshForge:
 	# 把 XY 平面上的轮廓沿 Z 挤出,z ∈ [−depth/2, depth/2];两端各一圈倒角(斜接内缩,凹角限幅 0.35)。
 	# 轮廓自动转成逆时针;转角大于 crease_deg 的地方侧墙硬边。不支持带洞轮廓(端面用 Geometry2D 三角化)。
-	# caps.x / caps.y:是否封 −Z / +Z 端面(转轮前端面另外拼,见 Revolver 网格)
+	# caps.x / caps.y:是否封 −Z / +Z 端面(转轮前端面另外拼,见 Revolver 网格)。
+	# round_steps > 1:倒角换成 round_steps 段的四分之一圆弧(软胶玩具式的圆边),法线沿圆弧平滑过渡;
+	# 端面仍是内缩 bevel 的轮廓(与 extrude_inset(outline, bevel) 一致)。默认 1 = 原来的单斜面
 	var pts := outline.duplicate()
 	if _signed_area(pts) < 0.0:
 		pts.reverse()
@@ -848,22 +850,34 @@ func extrude(outline: PackedVector2Array, depth: float, bevel := 0.0, t := Trans
 		else:
 			ring.append([i, (a + b).normalized()])
 	# 首尾相接:第一项若是硬边的后半(属于边 0),要放到最前面已是;把末尾那条边接回开头
-	var rows: Array = []   # 每行 [z, 是否内缩, 法线 z 分量权重]
-	if bevel > 0.0:
-		rows = [[-half, true, -1.0], [-half + bevel, false, 0.0], [half - bevel, false, 0.0], [half, true, 1.0]]
+	var rows: Array = []   # 每行 [z, 该行轮廓, 侧向法线权重, 法线 z 分量]
+	if bevel > 0.0 and round_steps > 1:
+		# 圆弧倒角:a 从端面(PI/2)转到侧墙(0),内缩 bevel·(1 − cos a),离端面 bevel·(1 − sin a)
+		var arc: Array = []
+		for s in range(round_steps, -1, -1):
+			var a := PI / 2.0 * s / round_steps
+			var ring_pts := inset if s == round_steps else (pts if s == 0 else extrude_inset(pts, bevel * (1.0 - cos(a))))
+			arc.append([bevel * (1.0 - sin(a)), ring_pts, cos(a), sin(a)])
+		for item in arc:
+			rows.append([-half + item[0], item[1], item[2], -item[3]])
+		for i in range(arc.size() - 1, -1, -1):
+			rows.append([half - arc[i][0], arc[i][1], arc[i][2], arc[i][3]])
+	elif bevel > 0.0:
+		rows = [[-half, inset, 1.0, -1.2], [-half + bevel, pts, 1.0, 0.0], [half - bevel, pts, 1.0, 0.0], [half, inset, 1.0, 1.2]]
 	else:
-		rows = [[-half, false, 0.0], [half, false, 0.0]]
+		rows = [[-half, pts, 1.0, 0.0], [half, pts, 1.0, 0.0]]
 	var points := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var indices := PackedInt32Array()
 	var stride := ring.size() + 1
 	for row in rows:
+		var row_pts: PackedVector2Array = row[1]
 		for k in stride:
 			var item: Array = ring[k % ring.size()]
-			var p2: Vector2 = inset[item[0]] if row[1] else pts[item[0]]
-			var n2: Vector2 = item[1]
+			var p2: Vector2 = row_pts[item[0]]
+			var n2: Vector2 = item[1] * row[2]
 			points.append(Vector3(p2.x, p2.y, row[0]))
-			normals.append(Vector3(n2.x, n2.y, row[2] * 1.2).normalized())
+			normals.append(Vector3(n2.x, n2.y, row[3]).normalized())
 	for r in range(1, rows.size()):
 		for k in ring.size():
 			var item: Array = ring[k]

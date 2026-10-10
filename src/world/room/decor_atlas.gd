@@ -1,5 +1,5 @@
 class_name DecorAtlas
-# 墙饰图集(2048×1024):启动时在离屏 SubViewport 里用矢量画 8 张物种通缉令、钟面、乐谱、箱子印字、琴键、
+# 墙饰图集(2048×1024):启动时在离屏 SubViewport 里用矢量画 10 张物种通缉令(前 8 张排在第一行,熊猫、企鹅的两张塞在右下的空位)、钟面、乐谱、箱子印字、琴键、
 # 窗外夜景、门外夜街、3 幅画、门廊木板与两块招牌,抓取成带 mipmap 的贴图(做法同 CardFaces)。
 # texture() 始终返回同一份 ImageTexture:画好之前(以及无头运行时)是 8×8 羊皮纸色,画好后原地换图。
 # rect(id) 是常量表(归一化 UV),无头时照样可用,几何照样生成。
@@ -14,7 +14,8 @@ const INK := Color(0.36, 0.22, 0.16)
 const GOLD := Color(0.92, 0.72, 0.34)
 # 通缉令标题色带与头像框底色:按物种轮换的粉彩(柔红、天蓝、薄荷、奶黄、淡紫、蜜桃、青绿、粉)
 const POSTER_BANDS := [Color(0.94, 0.52, 0.48), Color(0.52, 0.72, 0.92), Color(0.52, 0.82, 0.66), Color(0.98, 0.82, 0.42),
-	Color(0.74, 0.62, 0.90), Color(0.98, 0.68, 0.50), Color(0.40, 0.76, 0.74), Color(0.96, 0.62, 0.74)]
+	Color(0.74, 0.62, 0.90), Color(0.98, 0.68, 0.50), Color(0.40, 0.76, 0.74), Color(0.96, 0.62, 0.74),
+	Color(0.62, 0.84, 0.46), Color(0.56, 0.80, 0.94)]   # 熊猫竹青、企鹅冰蓝
 const MIN_FONT := 8
 # 像素矩形
 const RECTS := {
@@ -44,6 +45,8 @@ const BOUNTIES := {
 	"alpaca": ["赏金:一捆干草", "REWARD: A BALE OF HAY"],
 	"monkey": ["赏金:一串香蕉", "REWARD: A BUNCH OF BANANAS"],
 	"crocodile": ["赏金:一副假牙", "REWARD: A SET OF FALSE TEETH"],
+	"panda": ["赏金:一捆嫩竹子", "REWARD: A BUNDLE OF BAMBOO"],
+	"penguin": ["赏金:一桶冰鲜鱼", "REWARD: A BUCKET OF ICED FISH"],
 }
 const BOUNTY_FALLBACK := ["赏金:一桶啤酒", "REWARD: ONE KEG OF BEER"]
 
@@ -53,8 +56,15 @@ static var _building := false
 static var _fonts := {}
 
 
+# 第一行只放得下 8 张通缉令(1536 像素后是钟面):之后追加的物种放在其余区域之间的空位(左上角)
+const EXTRA_POSTERS := [Vector2i(1792, 480), Vector2i(1536, 672)]
+
+
 static func poster_rect_px(index: int) -> Rect2i:
-	return Rect2i(index * POSTER.x, 0, POSTER.x, POSTER.y)
+	var row: int = RECTS["clock"].position.x / POSTER.x
+	if index < row:
+		return Rect2i(index * POSTER.x, 0, POSTER.x, POSTER.y)
+	return Rect2i(EXTRA_POSTERS[index - row], POSTER)
 
 
 static func rect_px(id: String) -> Rect2i:
@@ -433,6 +443,46 @@ class DecorPainter:
 					draw_circle(Vector2(-14 + s * 9, -24), 2.4, ink)
 				draw_line(Vector2(-24, -30), Vector2(-16, -27), ink, 2.0, true)
 				_flat_hat(Vector2(-12, -32), ink, shade)
+			"panda":
+				for s in [-1, 1]:
+					_blob(Vector2(s * 27, -25), Vector2(12, 12), ink, ink)
+				_blob(Vector2(0, 0), Vector2(36, 31), paper, ink)
+				_hatch(Vector2(0, 0), Vector2(36, 31), ink)
+				for s in [-1, 1]:
+					# 往外下方耷拉的泪滴眼斑
+					var patch := PackedVector2Array()
+					for k in 24:
+						var a := TAU * k / 24.0
+						var drop := 1.0 + 0.5 * pow(maxf(cos(a - 1.1), 0.0), 2.5)
+						var q := Vector2(cos(a) * 8.0, sin(a) * 10.0) * drop
+						patch.append(Vector2(s * (12.0 + q.x), -5.0 + q.y))
+					_poly(patch, ink, ink, 1.0)
+					draw_circle(Vector2(s * 12, -6), 3.6, DecorAtlas.PAPER)
+					draw_circle(Vector2(s * 12, -5.5), 2.0, ink)
+				_blob(Vector2(0, 9), Vector2(6, 4.5), ink, ink, 1.0)
+				draw_arc(Vector2(-3.5, 16), 3.5, 0.0, PI, 8, ink, 1.6, true)
+				draw_arc(Vector2(3.5, 16), 3.5, 0.0, PI, 8, ink, 1.6, true)
+				# 嘴角斜叼的竹枝:竹节两道、末端两片叶子
+				draw_line(Vector2(-6, 18), Vector2(-42, 8), ink, 3.2, true)
+				for t in [0.4, 0.75]:
+					var n := Vector2(-6, 18).lerp(Vector2(-42, 8), t)
+					draw_line(n + Vector2(-0.8, -3), n + Vector2(0.8, 3), DecorAtlas.PAPER, 1.4, true)
+				_poly(PackedVector2Array([Vector2(-42, 8), Vector2(-50, -6), Vector2(-46, -14), Vector2(-40, -2)]), shade, ink, 1.4)
+				_poly(PackedVector2Array([Vector2(-42, 8), Vector2(-56, 4), Vector2(-62, 9), Vector2(-48, 11)]), shade, ink, 1.4)
+				_douli(Vector2(0, -27), ink, shade)
+			"penguin":
+				_blob(Vector2(0, 0), Vector2(34, 32), shade, ink)
+				_hatch(Vector2(0, 0), Vector2(34, 32), ink)
+				for s in [-1, 1]:
+					_blob(Vector2(s * 11, -5), Vector2(12, 13), paper, paper, 0.0)
+				_blob(Vector2(0, 9), Vector2(25, 17), paper, paper, 0.0)
+				var face := _ellipse_points(Vector2(0, 9), Vector2(25, 17), 40, -0.2, PI + 0.2)
+				draw_polyline(face, ink, 2.0, true)
+				_eyes(Vector2(0, -5), 11.0, ink, false)
+				_poly(PackedVector2Array([Vector2(-7, 4), Vector2(7, 4), Vector2(0, 15)]), shade, ink, 2.0)
+				for s in [-1, 1]:
+					draw_circle(Vector2(s * 20, 8), 4.0, Color(ink, 0.3))
+				_beanie(Vector2(0, -22), ink, shade)
 			_:
 				push_warning("通缉令:没有物种 %s 的画法,用通用头像" % id)
 				_blob(Vector2(0, 0), Vector2(34, 30), paper, ink)
@@ -504,6 +554,25 @@ class DecorPainter:
 		_blob(c + Vector2(0, -15), Vector2(12, 3.5), shade, ink, 1.8)
 		draw_line(c + Vector2(0, -18), c + Vector2(0, -24), ink, 2.0, true)
 		draw_circle(c + Vector2(0, -25), 2.5, ink)
+
+	func _douli(c: Vector2, ink: Color, shade: Color) -> void:
+		# 竹编小斗笠:浅圆锥 + 编织线 + 顶珠
+		_poly(PackedVector2Array([c + Vector2(-30, 2), c + Vector2(0, -15), c + Vector2(30, 2), c + Vector2(0, 5)]), DecorAtlas.PAPER, ink)
+		for k in 5:
+			var x := -20.0 + k * 10.0
+			draw_line(c + Vector2(0, -14), c + Vector2(x * 1.3, 3), Color(ink, 0.55), 1.0, true)
+		draw_circle(c + Vector2(0, -16), 3.0, ink)
+
+	func _beanie(c: Vector2, ink: Color, shade: Color) -> void:
+		# 毛线球帽:圆帽身 + 一道条纹 + 翻边 + 绒球
+		var dome := _ellipse_points(c, Vector2(27, 20), 24, PI, TAU)
+		_poly(dome, DecorAtlas.PAPER, ink)
+		draw_line(c + Vector2(-24, -9), c + Vector2(24, -9), ink, 3.0, true)
+		_poly(PackedVector2Array([c + Vector2(-29, -3), c + Vector2(29, -3), c + Vector2(29, 5), c + Vector2(-29, 5)]), shade, ink, 2.0)
+		for k in 9:
+			var x := -24.0 + k * 6.0
+			draw_line(c + Vector2(x, -2), c + Vector2(x, 4), Color(ink, 0.6), 1.0, true)
+		_blob(c + Vector2(0, -23), Vector2(7, 7), DecorAtlas.PAPER, ink, 2.0)
 
 	func _flat_hat(c: Vector2, ink: Color, shade: Color) -> void:
 		_blob(c, Vector2(38, 6), shade, ink)

@@ -61,8 +61,16 @@ func test_species_chip_does_not_make_the_panel_taller():
 
 
 func test_mode_buttons_fit_in_the_panel_width():
-	# 「开一桌」标题行挤着每种玩法一个按钮(加了炸弹猫是四个):不能把侧栏面板撑宽
+	# 「开一桌」标题右边是六种玩法的三列两行格子:不能把侧栏面板撑宽
 	assert_lte(menu._panel.get_combined_minimum_size().x, MainMenuScreen.PANEL_WIDTH)
+
+
+func test_mode_grid_does_not_make_the_panel_scroll_at_720p():
+	# 两行玩法按钮多出来的高度由「局域网房间」标题行收进搜索状态抵掉:1280×720 下整块面板仍放得下,不用滚动
+	assert_lte(menu._panel.get_combined_minimum_size().y, menu._scroll.size.y)
+	var picker: GridContainer = menu._panel.find_children("*", "GridContainer", true, false)[0]
+	assert_eq(picker.get_child_count(), GameMode.MENU_ORDER.size(), "六个格子都在")
+	assert_eq(menu._scan_label.get_parent().get_child(0).text, "局域网房间", "搜索状态在「局域网房间」标题行里")
 
 
 func test_menu_shows_the_preview_on_entry():

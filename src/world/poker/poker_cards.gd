@@ -46,7 +46,10 @@ func _init(p_world: TableWorld) -> void:
 	world = p_world
 	name = "PokerCards"
 	_board.resize(PokerRules.BOARD_CARDS)
-	add_child(BoardRack.new())
+	var rack := BoardRack.new()
+	add_child(rack)
+	# 穿模防护:探头的头从公共牌架上面拱过去(牌架随本节点释放后自动忽略)
+	world.clip_guard.set_prop(&"poker_board", BoardRack.guard_shape(rack))
 	world.first_person_changed.connect(_on_first_person_changed)
 
 
@@ -70,6 +73,12 @@ func shown_cards(pid: int) -> Array:
 
 func muck_cards() -> Array:
 	return _muck.duplicate()
+
+
+func hoverable_cards(pid: int) -> Array:
+	# 本机能悬停放大(CardPreview)的牌:桌上的公共牌与亮牌、pid(本机)牌扇里的手牌;弃牌堆不算。
+	# 牌面朝不朝镜头、是不是牌背由 CardPreview 自己判断
+	return _table_cards() + _held.get(pid, []).filter(func(card): return is_instance_valid(card))
 
 
 # —— 动画(协程)——
@@ -380,6 +389,8 @@ func _present_my_fan() -> void:
 func _new_card(kind: int, xform: Transform3D) -> Card3D:
 	var card := Card3D.new()
 	card.set_kind(kind)
+	if kind == CardFaces.BACK:
+		card.show_poker_back()   # 德州有自己的牌背
 	add_child(card)
 	card.transform = xform
 	return card

@@ -24,6 +24,15 @@ const LIMITS := {
 	"bomb_fp": {"draw_calls": 700, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
 	"bomb_overview": {"draw_calls": OTHER_VIEW_DRAW_CALLS, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
 	"bomb_close": {"draw_calls": OTHER_VIEW_DRAW_CALLS, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
+	# 吹牛骰子 6 人大桌展台(perf_probe --showcase=liars_dice):同炸弹猫,座位与第一人称 ≤ 700,俯视与特写按其余机位
+	"dice_seat": {"draw_calls": 700, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
+	"dice_fp": {"draw_calls": 700, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
+	"dice_overview": {"draw_calls": OTHER_VIEW_DRAW_CALLS, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
+	"dice_close": {"draw_calls": OTHER_VIEW_DRAW_CALLS, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
+	# 斗地主 3 人小桌展台(perf_probe --showcase=dou_dizhu):座位与第一人称同骗子酒馆的越肩预算,俯视按其余机位
+	"ddz_seat": {"draw_calls": 700, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
+	"ddz_fp": {"draw_calls": 700, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
+	"ddz_overview": {"draw_calls": OTHER_VIEW_DRAW_CALLS, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
 	# 结算庆祝(perf_probe --celebrate):胜者特写环绕与整桌环绕,礼炮、彩纸、音符都在场
 	"celebrate": {"draw_calls": OTHER_VIEW_DRAW_CALLS, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},
 	"celebrate_table": {"draw_calls": OTHER_VIEW_DRAW_CALLS, "frame_ms": FRAME_MS, "cpu_ms": CPU_MS, "lights": MAX_LIGHTS},

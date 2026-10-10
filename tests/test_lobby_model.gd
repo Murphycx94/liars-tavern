@@ -94,6 +94,19 @@ func test_can_start_needs_two_players_all_ready():
 	assert_false(lobby.can_start())
 
 
+func test_dou_dizhu_needs_exactly_three_and_caps_at_three():
+	var lobby := _make_lobby()
+	var need := GameMode.min_players(GameMode.DOU_DIZHU)
+	lobby.add_member(10, "乙")
+	lobby.set_ready(10, true)
+	assert_true(lobby.can_start(), "其他玩法 2 人就能开")
+	assert_false(lobby.can_start(need), "斗地主 2 人不能开")
+	lobby.add_member(11, "丙")
+	lobby.set_ready(11, true)
+	assert_true(lobby.can_start(need))
+	assert_string_contains(lobby.check_join(Protocol.VERSION, false, GameMode.DOU_DIZHU, false), "已满", "第 4 人进不来")
+
+
 func test_set_ready_unknown_member_and_host_is_rejected():
 	var lobby := _make_lobby()
 	assert_false(lobby.set_ready(99, true))
@@ -148,7 +161,7 @@ func test_host_gets_the_preferred_species():
 
 
 func test_host_with_an_invalid_preference_falls_back_to_the_first_species():
-	for bad in [Species.UNASSIGNED, 8, 999]:
+	for bad in [Species.UNASSIGNED, 10, 999]:   # 10 个物种(下标 0–9)之外
 		var lobby := LobbyModel.new()
 		lobby.add_host("房主", bad)
 		assert_eq(lobby.species_of(LobbyModel.HOST_ID), FOX, str(bad))
@@ -194,7 +207,7 @@ func test_out_of_range_requests_are_treated_like_taken_ones():
 	lobby.add_member(10, "乙")
 	assert_true(lobby.request_species(10, 99), "没有形象的分第一个空着的")
 	assert_eq(lobby.species_of(10), BEAR)
-	for bad in [-1, 8, 99, -500]:
+	for bad in [-1, 10, 99, -500]:
 		assert_false(lobby.request_species(10, bad), str(bad))
 		assert_eq(lobby.species_of(10), BEAR)
 
@@ -257,7 +270,7 @@ func test_view_carries_species_as_a_copy():
 
 
 func test_eight_seats_always_find_a_free_species():
-	# 德州 8 人桌、8 个物种:最后一个人也有空着的形象
+	# 德州 8 人桌(物种 10 个,2026-10-10 加了熊猫、企鹅):8 个人都要鳄鱼,房主拿到,其余按目录顺序分空着的,不重复
 	var lobby := LobbyModel.new()
 	lobby.add_host("房主", CROC)
 	for i in 7:
@@ -265,7 +278,7 @@ func test_eight_seats_always_find_a_free_species():
 		lobby.request_species(10 + i, CROC)
 	var taken := _species_by_pid(lobby).values()
 	taken.sort()
-	assert_eq(taken, range(Species.count()))
+	assert_eq(taken, range(8))
 
 
 func test_random_joins_leaves_and_requests_keep_species_unique():

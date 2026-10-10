@@ -1,5 +1,5 @@
 class_name CandlesProp
-# 桌上的两个烛台:每个烛台一份合并网格(黄铜卷边碟、带托盘的烛杯、蜡烛身带熔口与蜡泪、溢出杯沿的蜡池、微弯的烛芯;
+# 桌上的两个烛台:每个烛台一份合并网格(糖果粉花瓣碟、带托盘的黄铜烛杯、粉彩蜡烛身带熔口与蜡泪、溢出杯沿的蜡池、微弯的烛芯;
 # prop 材质,投影)、每支一片火焰公告板(共用火焰材质,种子各不相同)、一盏 OmniLight3D(烛台枢轴的直接子节点)。
 # 枢轴名 Candles0 / Candles1:性能探针按 Candles 前缀找烛光,两个各自命名免得重名被自动改名。
 # 德州时整组藏起来(连同灯),换一盏桌沿暖光(TableRimLight)。
@@ -18,6 +18,9 @@ const FLAME_SIZE := Vector2(0.03, 0.06)
 const FLAME_ABOVE := 0.024      # 火焰中心在蜡烛顶上方
 const LIGHT_SHARE := 0.75       # 每个烛台的灯 = 一支蜡烛的光 × 支数 × 这个比例
 const FELT := SeatLayout.FELT_TOP - SeatLayout.TABLE_TOP
+const DISH_THICKNESS := 0.0075  # 花瓣碟的厚度(烛杯底在 FELT + 0.004,压进碟里)
+const DISH_PETALS := 8
+const WAX_COLORS := ["wax", "wax_pink", "wax_butter"]
 
 
 static func candle_offset(i: int, count: int) -> Vector3:
@@ -26,6 +29,11 @@ static func candle_offset(i: int, count: int) -> Vector3:
 
 static func candle_height(i: int, seed: float) -> float:
 	return 0.06 + 0.035 * ((i * 37 + int(seed)) % 3)
+
+
+static func top_height() -> float:
+	# 最高那支蜡烛的火焰顶(牌桌坐标):穿模防护里头从烛台上面拱过去按它算
+	return SeatLayout.TABLE_TOP + WAX_BASE + 0.06 + 0.035 * 2 + FLAME_ABOVE + FLAME_SIZE.y * 0.5
 
 
 static func build(parent: Node3D, flickers: Array) -> Array[Node3D]:
@@ -82,15 +90,23 @@ static func _p(f: MeshForge, entry: String) -> void:
 	WorldMaterials.paint_prop(f, entry)
 
 
+static func dish_outline() -> PackedVector2Array:
+	# 8 瓣的圆润花形:半径在 0.071–0.085 之间起伏,瓣尖是圆的、瓣间是浅浅的弧形凹口
+	var out := PackedVector2Array()
+	for k in DISH_PETALS * 6:
+		var a := TAU * k / (DISH_PETALS * 6)
+		var petal := pow(absf(cos(a * DISH_PETALS / 2.0)), 0.7)
+		out.append(Vector2(cos(a), sin(a)) * (DISH_RADIUS - 0.014 * (1.0 - petal)))
+	return out
+
+
 static func holder_recipe(f: MeshForge, count: int, seed: float) -> void:
 	var xf := MeshForge.xf
 	f.surface(&"metal")
-	# 黄铜卷边碟(外沿 r 0.085)
-	_p(f, "brass")
-	f.lathe(PackedVector2Array([Vector2(0.0, FELT), Vector2(0.07, FELT), Vector2(0.078, FELT + 0.002),
-		Vector2(0.083, FELT + 0.006), Vector2(DISH_RADIUS, FELT + 0.009), Vector2(0.0835, FELT + 0.0118),
-		Vector2(0.0795, FELT + 0.0112), Vector2(0.074, FELT + 0.0065), Vector2(0.062, FELT + 0.0045),
-		Vector2(0.0, FELT + 0.0045)]), 24, PackedInt32Array([1]))
+	# 花瓣形糖果粉瓷碟(外沿 r 0.085,8 瓣,圆弧倒角的软边;平放在毡面上,底面贴毡不封)
+	_p(f, "candy_pink")
+	f.extrude(dish_outline(), DISH_THICKNESS, 0.0028, Transform3D(Basis(Vector3.RIGHT, -PI / 2.0),
+		Vector3(0, FELT + DISH_THICKNESS / 2.0, 0)), Vector2i(0, 1), 40.0, 2)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(seed * 101.0) + count
 	for i in count:
@@ -104,8 +120,9 @@ static func holder_recipe(f: MeshForge, count: int, seed: float) -> void:
 			Vector2(0.021 * k, FELT + 0.0075), Vector2(0.0185 * k, FELT + 0.011), Vector2(0.0195 * k, CUP_TOP - 0.004),
 			Vector2(0.0215 * k, CUP_TOP - 0.001), Vector2(0.021 * k, CUP_TOP), Vector2(0.0175 * k, CUP_TOP), Vector2(0.0, CUP_TOP - 0.003)]),
 			12, PackedInt32Array([1, 2, 7]), cup)
-		# 蜡烛身:半径按种子抖 ±0.4 mm;顶上一圈 5 mm 的圆肩,中心微微下凹(软软的玩具蜡烛)
-		_p(f, "wax")
+		# 蜡烛身:半径按种子抖 ±0.4 mm;顶上一圈 5 mm 的圆肩,中心微微下凹(软软的玩具蜡烛);
+		# 每支一种粉彩蜡色(奶油 / 淡粉 / 奶黄,按种子轮换),蜡泪与蜡池同色
+		_p(f, WAX_COLORS[(i + int(seed)) % WAX_COLORS.size()])
 		var r := WAX_RADIUS + rng.randf_range(-0.0004, 0.0004)
 		var top := WAX_BASE + height
 		var from := f.mark()

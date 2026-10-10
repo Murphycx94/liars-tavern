@@ -1,4 +1,4 @@
-// 牌桌桌布:薄荷青绒面(卡通降噪:一层很淡的大尺度绒面噪声)+ 边缘稍暗 + 奶黄丝线刺绣圆环 + 绒面逆光光泽。
+// 牌桌桌布:薄荷青绒面(卡通降噪:一层很淡的大尺度绒面噪声)+ 细密平纹织纹 + 柔和暗角 + 奶黄丝线刺绣圆环 + 绒面逆光光泽。
 shader_type spatial;
 
 #include "res://src/world/shaders/noise.gdshaderinc"
@@ -13,6 +13,8 @@ uniform vec3 thread_color : source_color = vec3(0.92, 0.74, 0.40);
 uniform float radius = 0.8;
 uniform float inner_ring = 0.28;
 uniform float outer_ring = 0.70;
+uniform float weave_period = 0.003;   // 织纹一格(米)
+uniform float weave_depth = 0.1;      // 织纹明暗幅度
 
 varying vec3 obj_pos;
 
@@ -26,9 +28,21 @@ void fragment() {
 	// 两层单倍频值噪声代替原来逐像素的 fbm:更省,也更干净
 	float fuzz = value_noise(p * 90.0);
 	float wear = value_noise(p * 5.0);
-	vec3 col = mix(felt_color, felt_edge, smoothstep(radius * 0.55, radius, r));
+	// 柔和暗角(2026-10-10):从桌心就开始缓缓变暗、到毡边最深,桌心再提亮一点,像灯下的一块软垫
+	float edge = smoothstep(radius * 0.18, radius * 1.02, r);
+	vec3 col = mix(felt_color, felt_edge, edge * edge * (3.0 - 2.0 * edge));
+	col *= 1.0 + 0.07 * (1.0 - smoothstep(0.0, radius * 0.55, r));
 	col *= 0.95 + fuzz * 0.1;
 	col *= 0.96 + wear * 0.08;
+	// 细密的平纹织纹:经纬线每格交替压上压下(周期 weave_period);像素盖过半格时淡出,远处不出摩尔纹
+	vec2 q = p / weave_period;
+	float fw = max(fwidth(q.x), fwidth(q.y));
+	vec2 f = fract(q) - 0.5;
+	float over = mod(floor(q.x) + floor(q.y), 2.0);
+	float thread_x = 1.0 - 4.0 * f.y * f.y;     // 沿 x 走的线:横截面中间鼓
+	float thread_y = 1.0 - 4.0 * f.x * f.x;
+	float weave = mix(thread_x, thread_y, over);
+	col *= 1.0 + (weave - 0.5) * weave_depth * (1.0 - smoothstep(0.3, 0.7, fw));
 	// 刺绣:内圈两股虚线针脚、外圈一道实线、再外一圈菱形针脚。金线是哑光丝线,不再亮得像霓虹灯
 	float angle = atan(p.y, p.x);
 	float dash = step(0.35, fract(angle * 96.0 / 6.2831853));

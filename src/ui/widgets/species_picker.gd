@@ -1,6 +1,6 @@
 class_name SpeciesPicker
 extends Control
-# 挑选形象面板(子项目② §3.1/§3.2):4×2 格,每格大头像 +「狐狸」+「老千绅士」;
+# 挑选形象面板(子项目② §3.1/§3.2):5×2 格(2026-10-10 加了熊猫、企鹅,10 个物种;原来 4×2),每格大头像 +「狐狸」+「老千绅士」;
 # 被别人占着的格子头像压灰、小字写占用者名字、按钮禁用;自己当前的格子黄铜边框。
 # 弹出式:本节点铺满屏幕当遮罩(点空白处收起),面板贴在侧栏旁边浮在 3D 场景上,
 # 不挤占侧栏的高度(主菜单在 1280×720 下已经差不多满了,德州等待厅的面板也压在 672 像素内)。
@@ -10,10 +10,10 @@ extends Control
 signal picked(index: int)
 signal closed
 
-const COLUMNS := 4
-const CELL := Vector2(88, 112)
+const COLUMNS := 5
+const CELL := Vector2(82, 112)    # 5 列以后每格收窄 6 像素(原 88),整块面板 ≈470 宽
 const PORTRAIT := 72.0
-const GAP := 8
+const GAP := 6
 const SIDE_GAP := 16.0          # 面板与侧栏的间距
 const SCREEN_MARGIN := 8.0      # 面板离屏幕边缘至少这么远
 const TAKEN_TINT := Color(0.45, 0.45, 0.45, 0.8)

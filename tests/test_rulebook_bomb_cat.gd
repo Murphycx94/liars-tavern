@@ -45,7 +45,7 @@ func test_every_card_is_listed_with_its_own_name_text_and_count():
 		assert_eq(item["name"], C.display_name(item["id"]))
 		assert_eq(item["text"], C.description(item["id"]))
 		assert_ne(item["count"], "")
-	assert_eq(RulebookBombCat.count_text(C.SKIP), "2–3 人 4 · 4–5 人 5 · 6 人 6")
+	assert_eq(RulebookBombCat.count_text(C.SKIP), "2–3 人 3 · 4–5 人 4 · 6 人 5")
 	assert_eq(RulebookBombCat.count_text(C.BOMB), "人数 − 1 张")
 
 

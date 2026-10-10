@@ -6,13 +6,15 @@ extends GutTest
 const C := preload("res://src/core/bomb_cat/bomb_cat_card.gd")
 
 # 设计稿 §1.4 的表,逐格抄一遍(和引擎常量分开写:改了表这里会提醒)
+# (2026-10-10 减量后的表)
 const TABLE := {
-	"skip": [4, 4, 5, 5, 6], "pass_turns": [3, 3, 4, 4, 5], "peek": [4, 4, 5, 5, 6],
-	"shuffle": [3, 3, 4, 4, 5], "beg": [3, 3, 4, 4, 4], "nope": [4, 4, 5, 5, 6],
-	"snack": [4, 4, 4, 4, 5],
+	"skip": [3, 3, 4, 4, 5], "pass_turns": [2, 2, 3, 3, 4], "peek": [3, 3, 4, 4, 5],
+	"shuffle": [2, 2, 3, 3, 4], "beg": [2, 2, 3, 3, 3], "nope": [3, 3, 4, 4, 5],
+	"snack": [3, 3, 3, 3, 4],
 }
 # 每种人数的总张数:功能牌 + 拆弹(n + 2,5 人起 n + 1)+ 炸弹(n − 1)
-const TOTALS := {2: 41 + 4 + 1, 3: 41 + 5 + 2, 4: 47 + 6 + 3, 5: 47 + 6 + 4, 6: 57 + 7 + 5}
+const TOTALS := {2: 30 + 4 + 1, 3: 30 + 5 + 2, 4: 36 + 6 + 3, 5: 36 + 6 + 4, 6: 46 + 7 + 5}
+const OPENING_HAND := 5   # 4 张 + 1 张拆弹
 
 
 func _rng(seed_value: int) -> RandomNumberGenerator:
@@ -52,20 +54,20 @@ func test_total_cards_per_player_count():
 		assert_eq(BombCatDeck.total_cards(n), TOTALS[n], "%d 人" % n)
 
 
-func test_deal_gives_seven_plus_one_defuse_and_mixes_the_rest():
+func test_deal_gives_four_plus_one_defuse_and_mixes_the_rest():
 	for n in range(2, 7):
 		var dealt := BombCatDeck.deal(_pids(n), _rng(n * 13))
 		var everything: Array = dealt["deck"].duplicate()
 		for pid in _pids(n):
 			var hand: Array = dealt["hands"][pid]
-			assert_eq(hand.size(), 8, "%d 人:开局手牌 8 张" % n)
+			assert_eq(hand.size(), OPENING_HAND, "%d 人:开局手牌 5 张" % n)
 			assert_eq(_count(hand, C.DEFUSE), 1, "%d 人:手里正好 1 张拆弹" % n)
 			assert_eq(_count(hand, C.BOMB), 0, "开局手里没有炸弹")
 			everything.append_array(hand)
 		assert_eq(everything.size(), TOTALS[n], "%d 人:牌数守恒" % n)
 		assert_eq(_count(dealt["deck"], C.BOMB), n - 1, "%d 人:牌堆里 n − 1 张炸弹" % n)
 		assert_eq(_count(dealt["deck"], C.DEFUSE), BombCatDeck.defuse_total(n) - n, "%d 人:剩余拆弹放回牌堆" % n)
-		assert_eq(dealt["deck"].size(), TOTALS[n] - 8 * n)
+		assert_eq(dealt["deck"].size(), TOTALS[n] - OPENING_HAND * n)
 
 
 func test_deal_is_reproducible_with_the_same_seed():
