@@ -12,6 +12,7 @@ extends Node
 #   give      2 号向自己讨要一张牌
 #   settlement 结算面板
 
+const ShowcaseSpecies := preload("res://tools/showcase_species.gd")
 
 const ME := 1
 const SEATS := 6
@@ -57,7 +58,7 @@ func build(tavern: Tavern) -> void:
 	world.configure_table(SeatLayout.table_radius_for(GameMode.BOMB_CAT, SEATS))
 	tavern.set_table_decor_visible(true)
 	world.cards.set_stand_visible(false)
-	world.arrange(range(1, SEATS + 1).map(func(pid): return {"pid": pid}), ME, true, false)
+	world.arrange(ShowcaseSpecies.players(range(1, SEATS + 1)), ME, true, false)
 	cards = BombCatCards.new(world)
 	cards.my_pid = ME
 	world.poker_root.add_child(cards)

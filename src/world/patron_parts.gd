@@ -45,6 +45,17 @@ const SPECIES := [
 		"fur": Color(0.24, 0.46, 0.22), "muzzle": Color(0.76, 0.7, 0.45), "dark": Color(0.1, 0.16, 0.08),
 		"coat": Color(0.22, 0.22, 0.24), "accent": Color(0.72, 0.16, 0.12), "hat": "cowboy", "ears": "none",
 	},
+	# 2026-10-10 追加(协议 v10):熊猫、企鹅
+	{
+		"id": "panda", "label": "熊猫",
+		"fur": Color(0.80, 0.79, 0.76), "muzzle": Color(0.82, 0.80, 0.76), "dark": Color(0.12, 0.11, 0.12),
+		"coat": Color(0.70, 0.14, 0.12), "accent": Color(0.84, 0.64, 0.24), "hat": "douli", "ears": "round",
+	},
+	{
+		"id": "penguin", "label": "企鹅",
+		"fur": Color(0.12, 0.14, 0.2), "muzzle": Color(0.80, 0.80, 0.78), "dark": Color(0.06, 0.07, 0.1),
+		"coat": Color(0.12, 0.14, 0.2), "accent": Color(0.72, 0.16, 0.14), "hat": "beanie", "ears": "none",
+	},
 ]
 
 

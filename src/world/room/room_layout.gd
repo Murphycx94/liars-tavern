@@ -94,6 +94,7 @@ const RUG_CORNER := 0.05         # 长条毯圆角
 const DECOR := [
 	{"id": "poster_fox", "kind": "poster", "wall": "back", "u": 0.22, "y": 1.62, "size": Vector2(0.30, 0.40), "tilt": -2.0, "species": 0, "curl": 0.02},
 	{"id": "poster_bear", "kind": "poster", "wall": "back", "u": 0.62, "y": 1.55, "size": Vector2(0.30, 0.40), "tilt": 3.0, "species": 1, "curl": 0.0},
+	{"id": "poster_panda", "kind": "poster", "wall": "back", "u": 1.9, "y": 1.66, "size": Vector2(0.30, 0.40), "tilt": -2.5, "species": 8, "curl": 0.016},
 	{"id": "clock", "kind": "clock", "wall": "back", "u": 2.30, "y": 1.80, "size": Vector2(0.34, 0.85), "tilt": 0.0},
 	{"id": "painting_bison", "kind": "painting", "wall": "back", "u": 3.82, "y": 1.62, "size": Vector2(0.56, 0.40), "tilt": 0.0, "art": "bison"},
 	{"id": "poster_pig", "kind": "poster", "wall": "left", "u": 2.60, "y": 1.62, "size": Vector2(0.30, 0.40), "tilt": 1.5, "species": 2, "curl": 0.015},
@@ -105,6 +106,7 @@ const DECOR := [
 	{"id": "painting_coach", "kind": "painting", "wall": "front", "u": -2.72, "y": 1.85, "size": Vector2(0.60, 0.45), "tilt": 0.0, "art": "coach"},
 	{"id": "horseshoe", "kind": "horseshoe", "wall": "front", "u": -0.35, "y": 2.66, "size": Vector2(0.14, 0.15), "tilt": 0.0},
 	{"id": "poster_crocodile", "kind": "poster", "wall": "right", "u": 0.55, "y": 1.60, "size": Vector2(0.30, 0.40), "tilt": -2.0, "species": 7, "curl": 0.02},
+	{"id": "poster_penguin", "kind": "poster", "wall": "right", "u": 1.22, "y": 1.58, "size": Vector2(0.30, 0.40), "tilt": 2.0, "species": 9, "curl": 0.0},
 	{"id": "painting_mesa", "kind": "painting", "wall": "right", "u": -2.45, "y": 1.62, "size": Vector2(0.60, 0.42), "tilt": 0.0, "art": "mesa"},
 	{"id": "wagon_wheel", "kind": "wheel", "wall": "right", "u": 2.40, "y": 1.72, "size": Vector2(0.72, 0.72), "tilt": 0.0},
 	{"id": "chalkboard", "kind": "chalkboard", "wall": "left", "u": -3.9, "y": 1.58, "size": Vector2(0.5, 0.38), "tilt": 1.0},

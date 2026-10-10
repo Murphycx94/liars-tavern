@@ -4,7 +4,7 @@ extends SceneTree
 #   godot --headless --path . -s tools/net_probe.gd -- --role=host --players=3
 #   godot --headless --path . -s tools/net_probe.gd -- --role=client --addr=127.0.0.1
 #   godot --headless --path . -s tools/net_probe.gd -- --role=client --discover
-#   任一角色都可加 --species=物种id(fox / bear / … / crocodile):建房、加入时报的形象
+#   任一角色都可加 --species=物种id(fox / bear / … / panda / penguin):建房、加入时报的形象
 # 退出码:0 = 收到 match_over;1 = 超时或出错。
 
 

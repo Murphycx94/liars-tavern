@@ -250,7 +250,8 @@ func _build_head(spec: Dictionary) -> void:
 	_eye.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var eyes: Dictionary = _look_data["eyes"]
 	var iris: Color = eyes.get("iris", Color(0.4, 0.28, 0.12))
-	var lid_color: Color = PatronParts.palette(spec)["fur"]
+	# 眼皮颜色默认是皮毛色;眼睛长在眼斑 / 白脸上的物种(熊猫、企鹅)用 LOOK eyes.lid 指定调色板键
+	var lid_color: Color = PatronParts.palette(spec)[eyes.get("lid", "fur")]
 	_eye.set_instance_shader_parameter("iris_color", Vector3(iris.r, iris.g, iris.b))
 	_eye.set_instance_shader_parameter("lid_color", Vector3(lid_color.r, lid_color.g, lid_color.b))
 	_eye.set_instance_shader_parameter("lid_rest", eyes.get("lid_rest", 0.12))

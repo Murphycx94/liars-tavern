@@ -12,6 +12,7 @@ extends Node
 #   out       5 号骰子输光出局:蚊香眼、星星、骰盅歪倒(配 dice_overview)
 #   settlement 结算面板
 
+const ShowcaseSpecies := preload("res://tools/showcase_species.gd")
 
 const ME := 1
 const SEATS := 6
@@ -53,7 +54,7 @@ func build(tavern: Tavern) -> void:
 	world.configure_table(SeatLayout.table_radius_for(GameMode.LIARS_DICE, SEATS))
 	tavern.set_table_decor_visible(true)
 	world.cards.set_stand_visible(false)
-	world.arrange(range(1, SEATS + 1).map(func(pid): return {"pid": pid}), ME, true, false)
+	world.arrange(ShowcaseSpecies.players(range(1, SEATS + 1)), ME, true, false)
 	cups = LiarsDiceCups.new(world)
 	cups.my_pid = ME
 	world.poker_root.add_child(cups)

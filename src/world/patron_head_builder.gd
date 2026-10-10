@@ -91,6 +91,8 @@ static func eyes(f: MeshForge, look: Dictionary) -> void:
 	var shapes := scaled_skull(look)
 	var k: float = look["head"].get("blend", 0.04) * PatronParts.HEAD_SCALE
 	var list := MeshForge._expand_shapes(shapes)
+	# 眼面离颅骨的最小高度:脸上贴了花纹贴片(熊猫眼斑、企鹅白脸,离颅骨 ≈2–3 mm)的物种在 LOOK eyes.lift 里抬高,眼圈不被贴片盖住
+	var lift: float = e.get("lift", 0.0015)
 	f.paint(Color(0.66, 0.65, 0.62), 0.15)
 	for side: float in [-1.0, 1.0]:
 		var center := Vector3(pos.x * side, pos.y, pos.z)
@@ -112,7 +114,7 @@ static func eyes(f: MeshForge, look: Dictionary) -> void:
 				var surf := MeshForge.blob_surface(plane - fwd * 0.2, fwd, shapes, k)
 				var n := _sdf_normal(surf, list, k)
 				var dome := cos(theta)
-				points.append(surf + n * (size.z * dome + 0.0015))
+				points.append(surf + n * (size.z * dome + lift))
 				var bulge := basis * Vector3(sin(theta) * cos(phi) / size.x, sin(theta) * sin(phi) / size.y, 0.0) * 0.02
 				normals.append((n + bulge * dome).normalized())
 				customs.append_array([sin(theta) * cos(phi), sin(theta) * sin(phi), side, 0.0])

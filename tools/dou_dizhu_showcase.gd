@@ -12,6 +12,7 @@ extends Node
 #   spring     一手结束:自己(地主)打成春天,别人的剩牌摊开、花瓣飘落、右边这一手的结算
 #   settlement 散局结算面板 + 第一名跳舞
 
+const ShowcaseSpecies := preload("res://tools/showcase_species.gd")
 
 const ME := 1
 const SEATS := [1, 2, 3]
@@ -54,7 +55,7 @@ func build(tavern: Tavern) -> void:
 	tavern.set_table_decor_visible(true)
 	world.cards.set_stand_visible(false)
 	world.third_person_override = DdzLayout.THIRD_PERSON
-	world.arrange([{"pid": 1, "species": 3}, {"pid": 2, "species": 0}, {"pid": 3, "species": 1}], ME, true, false)
+	world.arrange(ShowcaseSpecies.players([1, 2, 3], {1: 3, 2: 0, 3: 1}), ME, true, false)
 	cards = DdzCards.new(world)
 	cards.my_pid = ME
 	world.poker_root.add_child(cards)

@@ -2,7 +2,7 @@ class_name DebugFlags
 extends Node
 # 命令行调试开关(写在 -- 之后),用于联机冒烟测试与截图检查:
 #   --name=甲            自动填写昵称
-#   --species=物种id     本次运行想要的形象(fox/bear/…/crocodile),只覆盖本次、不写设置;
+#   --species=物种id     本次运行想要的形象(fox/bear/…/crocodile/panda/penguin),只覆盖本次、不写设置;
 #                        每次名单更新与开局时打印 [debug] species {pid: id}(冒烟测试比对各进程)
 #   --autohost[=N]       自动建房;满 N 人(默认 2)且全员准备后自动开局
 #   --mode=玩法id        配合 --autohost:liars / bomb_cat / liars_dice / dou_dizhu / holdem / short_deck(默认 liars;非法值退出码 1),默认房名跟着玩法

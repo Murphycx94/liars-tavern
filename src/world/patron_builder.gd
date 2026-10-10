@@ -267,6 +267,14 @@ static func _shoe_shape(f: MeshForge, pal: Dictionary, l: Dictionary, at: Vector
 			paint(f, pal, l.get("foot_color", "paw"), 0.8, SMOOTH)
 			f.blob(at + Vector3(0, 0.035, -0.02), [[at + Vector3(0, 0.035, -0.025), Vector3(0.05, 0.038, 0.07), fur],
 				[at + Vector3(0, 0.05, 0.01), Vector3(0.046, 0.04, 0.045), fur]], 18, 10, 0.014)
+		"webbed":
+			# 扁扁的蹼脚(企鹅):脚跟一团、往前摊开的脚掌,前缘三个圆趾头
+			var web := color(pal, l.get("foot_color", "paw"))
+			paint(f, pal, l.get("foot_color", "paw"), 0.6, SMOOTH)
+			f.blob(at + Vector3(0, 0.025, -0.03), [[at + Vector3(0, 0.03, 0.005), Vector3(0.04, 0.03, 0.04), web],
+				[at + Vector3(0, 0.014, -0.045), Vector3(0.05, 0.014, 0.05), web],
+				[at + Vector3(0.032, 0.013, -0.088), Vector3(0.019, 0.013, 0.022), web, "mirror"],
+				[at + Vector3(0, 0.013, -0.096), Vector3(0.019, 0.013, 0.022), web]], 18, 10, 0.012)
 		_:
 			# 鞋 / 靴:圆头胖鞋,鞋底一圈深色(颜色混合,不另做鞋底块);靴子多一截圆靴筒
 			var shoe := color(pal, l.get("shoe", "shoe"))

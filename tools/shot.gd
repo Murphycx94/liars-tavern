@@ -25,7 +25,7 @@ extends SceneTree
 # (LiarsDiceShowcase.HUD_STATES:bidding / peek / counting / lost / out / settlement),没写时 dice_overview 用 out,其余用 bidding。
 # 全套:--views=dice_seat,dice_fp,dice_peek,dice_seat,dice_close,dice_seat,dice_close,dice_overview,dice_seat
 #       --hud=bidding,peek,peek,counting,counting,lost,lost,out,settlement --liars-dice-showcase
-# --lineup 时 8 个物种一字排开(机位 lineup_front / lineup_back / lineup_heads …);再加 --ddz-hats=landlord|farmer|mix 给他们戴上斗地主的身份帽。
+# --lineup 时全部 10 个物种一字排开(机位 lineup_front / lineup_back / lineup_heads …);再加 --ddz-hats=landlord|farmer|mix 给他们戴上斗地主的身份帽。
 # --atlas 时另存墙饰图集与墙地噪声贴图(decor_atlas.png、surface_noise.png)。
 # --stats 时每个机位打印全帧削顶比例、每张酒客脸与爪子的发白(亮度 ≥ 0.85)/削顶比例、墙面灰泥区域的亮度标准差。
 # --celebrate[=秒] 在已摆好的展台(--showcase / --poker-showcase / --bomb-cat-showcase)上开演结算庆祝(tools/celebrate_stage.gd:
@@ -49,7 +49,7 @@ const PreviewStage := preload("res://tools/preview_stage.gd")
 const WARMUP_FRAMES := 45
 const SETTLE_DRAWS := 8   # 截图前连续强制绘制的帧数(体积雾的时域累积要几帧才收敛;同 DebugFlags)
 const POKER_ME := 1
-const LINEUP_SPACING := 0.78   # --lineup 时酒客之间的间距(米)
+const LINEUP_SPACING := 0.7    # --lineup 时酒客之间的间距(米):10 个物种(原来 8 个时 0.78),大头 ≈0.64 米宽
 const LINEUP_Z := 1.5          # 排在牌桌前面,不和桌子重叠
 const FACE_RADIUS := 0.17   # 酒客头的半径(米),--stats 按它在画面上框出脸
 const PAW_RADIUS := 0.06    # 爪子的半径(米)
@@ -104,7 +104,7 @@ func _run() -> void:
 		DecorAtlas.texture().get_image().save_png(out_dir + "/decor_atlas.png")
 		SurfaceNoise.texture().get_image().save_png(out_dir + "/surface_noise.png")
 	if opts.has("lineup"):
-		# 8 个物种一字排开(面朝镜头),配 lineup_front / lineup_back / lineup_heads 机位
+		# 全部物种一字排开(面朝镜头),配 lineup_front / lineup_back / lineup_heads 机位
 		for i in Species.count():
 			var patron := Patron.new(i)
 			patron.position = Vector3((i - (Species.count() - 1) * 0.5) * LINEUP_SPACING, 0, LINEUP_Z)

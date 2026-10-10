@@ -2,8 +2,8 @@
 # 无头联机冒烟:1 个房主 + 2 个 bot 客户端(一个走局域网发现,一个直连 127.0.0.1)跑完整局。
 # 通过条件:三个进程都以 0 退出、都收到 MATCH_OVER、都收到另外两人的视线与脖子同步和快捷对话(QUIPS heard=2)、
 # 都收到三个人各丢的一个番茄和各说的一句快捷语(BANTER tomatoes=3 said=3)、日志里没有脚本错误;
-# 三人都要鳄鱼(--species=crocodile):三个日志最后一条 [debug] species 完全一致,房主是 crocodile,
-# 另外两人各不相同且不是 crocodile(先到先得,被占时房主给空着的)。
+# 三人都要企鹅(--species=penguin,2026-10-10 新加的下标 9,顺带验证新形象过网络):三个日志最后一条 [debug] species 完全一致,房主是 penguin,
+# 另外两人各不相同且不是 penguin(先到先得,被占时房主给空着的)。
 # 接着再跑一局炸弹猫(--mode=bomb_cat,同样 1 房主 + 发现 + 直连,机器人走牌桌的真实入口出牌、不行!、摸牌、塞回、给牌):
 # 三个进程都以 0 退出、都打到 MATCH_OVER、三端的胜者一致、都收到另外两人的九宫格快捷对话(QUIPS heard=2)、日志里没有脚本错误。
 # 最后再跑一局吹牛骰子(--mode=liars_dice,同样 1 房主 + 发现 + 直连,机器人经出价器喊价或「开!」):
@@ -25,7 +25,7 @@ run_capped() {
 	perl -e 'alarm shift; exec @ARGV' "$CAP_SECONDS" "$@"
 }
 
-COMMON=(--headless --path "$ROOT" -- --bot --fast="$SPEED" --quit-after-match --species=crocodile)
+COMMON=(--headless --path "$ROOT" -- --bot --fast="$SPEED" --quit-after-match --species=penguin)
 # 每次运行用独立的游戏端口与房名:同机并行跑多份冒烟时,直连与发现都只会进自己的房间
 PORT="${PORT:-$((47830 + RANDOM % 150))}"
 ROOM="冒烟$$"
@@ -66,14 +66,14 @@ if [ -z "${species_lines[0]}" ] || [ "${species_lines[0]}" != "${species_lines[1
 	printf '  %s\n' "${species_lines[@]}"
 	status=1
 else
-	# 「[debug] species {1: crocodile, 123: fox, 456: bear}」→ 每行一个「pid id」
+	# 「[debug] species {1: penguin, 123: fox, 456: bear}」→ 每行一个「pid id」
 	entries=$(echo "${species_lines[0]}" | sed -e 's/.*{//' -e 's/}.*//' | tr ',' '\n' | sed -e 's/^ *//' -e 's/: / /')
 	host_species=$(echo "$entries" | awk '$1 == 1 {print $2}')
 	others=$(echo "$entries" | awk '$1 != 1 {print $2}')
 	other_count=$(echo "$others" | grep -c . || true)
 	unique_count=$(echo "$others" | sort -u | grep -c . || true)
-	if [ "$host_species" != "crocodile" ] || [ "$other_count" -ne 2 ] || [ "$unique_count" -ne 2 ] \
-		|| echo "$others" | grep -qx -e 'crocodile' -e '-'; then
+	if [ "$host_species" != "penguin" ] || [ "$other_count" -ne 2 ] || [ "$unique_count" -ne 2 ] \
+		|| echo "$others" | grep -qx -e 'penguin' -e '-'; then
 		echo "FAIL species — 分配不对:${species_lines[0]}"
 		status=1
 	else
