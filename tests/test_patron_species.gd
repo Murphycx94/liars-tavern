@@ -40,7 +40,7 @@ func test_structure_and_budget_for_every_species():
 	for i in Species.count():
 		var p := _patron(i)
 		var id: String = Species.IDS[i]
-		for path in ["Chair", "Legs", "Body", "Body/Neck", "Body/Head", "Body/Head/Hat", "Body/ArmL/Hand", "Body/ArmR/Hand", "Body/Fan"]:
+		for path in ["Chair", "Figure/Legs", "Figure/Body", "Figure/Body/Neck", "Figure/Body/Head", "Figure/Body/Head/Hat", "Figure/Body/ArmL/Hand", "Figure/Body/ArmR/Hand", "Figure/Body/Fan"]:
 			assert_not_null(p.get_node_or_null(path), "%s 缺 %s" % [id, path])
 		var visible := p.find_children("*", "MeshInstance3D", true, false).filter(func(m): return m.visible)
 		assert_lte(visible.size(), MAX_VISIBLE, id + " 可见网格")
@@ -53,11 +53,11 @@ func test_structure_and_budget_for_every_species():
 func test_neck_stays_a_unit_height_mesh():
 	for i in Species.count():
 		var p := _patron(i)
-		var neck: MeshInstance3D = p.get_node("Body/Neck/NeckMesh")
+		var neck: MeshInstance3D = p.get_node("Figure/Body/Neck/NeckMesh")
 		var box := neck.mesh.get_aabb()
 		assert_almost_eq(box.position.y, 0.0, 0.001, Species.IDS[i])
 		assert_almost_eq(box.end.y, 1.0, 0.001, Species.IDS[i])
-		assert_eq(p.get_node("Body/Neck").get_child_count(), 1, "脖子上不挂别的东西")
+		assert_eq(p.get_node("Figure/Body/Neck").get_child_count(), 1, "脖子上不挂别的东西")
 
 
 func test_head_center_hat_height_and_nothing_far_behind():
@@ -80,7 +80,7 @@ func test_head_center_hat_height_and_nothing_far_behind():
 func test_chest_leaves_room_for_opponents_card_fan():
 	for i in Species.count():
 		var p := _patron(i)
-		var body_mesh: MeshInstance3D = p.get_node("Body/BodyMesh")
+		var body_mesh: MeshInstance3D = p.get_node("Figure/Body/BodyMesh")
 		var front := INF
 		for v in _points(body_mesh, p.body):
 			if v.y >= 0.35 and v.y <= 0.55:
@@ -91,7 +91,7 @@ func test_chest_leaves_room_for_opponents_card_fan():
 func test_knees_under_the_table_and_feet_clear_the_chair_legs():
 	for i in Species.count():
 		var p := _patron(i)
-		var legs: MeshInstance3D = p.get_node("Legs")
+		var legs: MeshInstance3D = p.get_node("Figure/Legs")
 		var id: String = Species.IDS[i]
 		var tail_path: Array = SpeciesLooks.look(i).get("tail", {}).get("path", [])
 		var tail_root_z: float = tail_path[0].z if not tail_path.is_empty() else INF
@@ -126,11 +126,11 @@ func test_species_recipes_are_deterministic():
 
 func test_eyes_get_their_species_parameters():
 	var cat := _patron(3)
-	var eye: MeshInstance3D = cat.get_node("Body/Head/Eyes")
+	var eye: MeshInstance3D = cat.get_node("Figure/Body/Head/Eyes")
 	assert_eq(eye.get_instance_shader_parameter("pupil_shape"), 1.0, "猫是竖瞳")
 	assert_eq(eye.mesh.surface_get_material(0), WorldMaterials.patron_eye())
 	var turtle := _patron(4)
-	assert_gt(float(turtle.get_node("Body/Head/Eyes").get_instance_shader_parameter("lid_rest")), 0.3, "乌龟眼皮厚")
+	assert_gt(float(turtle.get_node("Figure/Body/Head/Eyes").get_instance_shader_parameter("lid_rest")), 0.3, "乌龟眼皮厚")
 
 
 func test_fist_swaps_in_when_holding_the_gun():
@@ -164,7 +164,7 @@ func test_snout_tips_and_forward_reach():
 	for i in Species.count():
 		var p := _patron(i)
 		var id: String = Species.IDS[i]
-		var head_mesh: MeshInstance3D = p.get_node("Body/Head/HeadMesh")
+		var head_mesh: MeshInstance3D = p.get_node("Figure/Body/Head/HeadMesh")
 		var tip := INF
 		for v in _points(head_mesh, p.head):
 			tip = minf(tip, v.z)

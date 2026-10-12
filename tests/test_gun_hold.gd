@@ -14,7 +14,7 @@ func after_each():
 
 
 func _clearance(patron: Patron) -> float:
-	return patron._gun_clearance()
+	return patron._gun_clearance() * patron.figure_scale   # 净空按原尺寸,牌桌上的米乘身形缩放
 
 
 func _hold(species: int) -> Array:
@@ -35,9 +35,8 @@ func _hold(species: int) -> Array:
 
 func _axis_miss(gun: Revolver3D, center: Vector3) -> float:
 	# 枪管轴线(枪本地 y = BARREL_Y、沿 −Z)到 center 的距离
-	var xf := gun.global_transform.orthonormalized()
-	var origin := xf * Vector3(0, Revolver3D.BARREL_Y, 0)
-	var dir := -xf.basis.z
+	var origin := gun.global_transform * Vector3(0, Revolver3D.BARREL_Y, 0)   # 枪跟着手缩放了
+	var dir := -gun.global_transform.basis.z.normalized()
 	var to_center := center - origin
 	return (to_center - dir * to_center.dot(dir)).length()
 

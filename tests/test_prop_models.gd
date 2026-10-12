@@ -92,7 +92,7 @@ func test_table_clears_every_torso():
 		add_child_autofree(patron)
 		patron.set_active(true)
 		await wait_seconds(1.2)
-		var body_mesh: MeshInstance3D = patron.get_node("Body/BodyMesh")
+		var body_mesh: MeshInstance3D = patron.get_node("Figure/Body/BodyMesh")
 		var closest := INF
 		for part in _arrays(body_mesh):
 			for v: Vector3 in part[0]:

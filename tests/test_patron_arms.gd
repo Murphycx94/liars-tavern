@@ -8,7 +8,7 @@ const SETTLE := 1.2        # 秒:登场缩放(0.55 秒)与前倾插值都走完
 const SIT_BAND := Vector2(0.03, 0.07)  # 米:掌心高出桌面的范围——低了是按进桌里/贴在桌边,高了是悬空
 const ON_TABLE := 0.02     # 米:手掌至少有这么多搭在桌面以内
 const LEAN_AHEAD := 0.1    # 米:前倾坐姿下,头部至少在髋部前方这么远
-const SIT_UP_BACK := 0.06  # 米:举枪坐直时,头部比前倾坐着时至少往后收这么多
+const SIT_UP_BACK := 0.06 * Patron.FIGURE_SCALE  # 米:举枪坐直时,头部比前倾坐着时至少往后收这么多
 const REACH_PEAK := 0.27   # 秒:出牌手势前推 0.22 秒后停留 0.12 秒,在停留期间取样
 
 var world: TableWorld

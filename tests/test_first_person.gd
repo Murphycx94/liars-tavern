@@ -131,7 +131,7 @@ func test_first_person_looks_at_the_table():
 		_setup([{"pid": 1}, {"pid": 2}], poker)
 		var view := world.first_person_rest_view(1)
 		var forward := -view.basis.z
-		assert_lt(forward.y, -0.2, "往下看向桌面")
+		assert_lt(forward.y, -0.12, "往下看向桌面")   # 角色缩到 80% 后眼睛更低,俯角小一些
 		var center := Vector3(0, SeatLayout.TABLE_TOP, 0)
 		assert_gt(forward.dot((center - view.origin).normalized()), 0.99, "桌心在画面正中附近")
 		world.queue_free()
@@ -273,9 +273,9 @@ func test_head_hides_whenever_the_camera_is_inside_it():
 	await wait_seconds(0.1)
 	assert_false(me.is_head_hidden(), "越肩:头照常显示")
 	cam.leave()
-	var reveal := world.reveal_view(2)
-	assert_lt(reveal.origin.distance_to(me.head_position()), SeatCamera.HEAD_INSIDE, "前提:翻牌机位在自己头里")
-	rig.snap(reveal.origin, reveal.origin - reveal.basis.z)
+	# 角色缩到 80% 之后翻牌机位已在头顶之上(不再穿过头),这里直接把镜头放进头里
+	var inside := me.head_position() + Vector3(0, 0.05, 0)
+	rig.snap(inside, inside + world.seat_transform(world.seat_angles[1]).basis * Vector3.FORWARD)
 	await wait_seconds(0.1)
 	assert_true(me.is_head_hidden(), "翻牌机位:藏头,看不到自己的胡须和耳朵")
 	assert_false(world.patrons[2].is_head_hidden(), "别人的头不动")

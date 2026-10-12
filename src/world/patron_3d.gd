@@ -4,8 +4,15 @@ extends Node3D
 # 坐姿:身体前倾趴在牌桌上,双手搭在桌面——拿着牌也一样,牌扇自己立在胸前(爪子去扶牌会挡住牌面)。
 # 待机:呼吸、眨眼、眼神与头部跟随;动作:出牌伸手、拍桌、举枪(坐直)、中弹倒下、庆祝(坐直);
 # 结算时胜者跳舞、旁人鼓掌、出局的人抽一下手(PatronDance,规格 2026-10-09-winner-celebration)。
+# 角色整体缩小(2026-10-12 用户要求缩到原来的 80%):腿和身体挂在 Figure 枢轴下,绕髋部等比缩小 FIGURE_SCALE,
+# 髋部从 HIP 挪到座面前沿 FIGURE_HIP(小个子往前坐,一臂才搭得到桌面);椅子不缩。
+# 下面的 HIP、SHOULDER、HEAD_PIVOT、举手位置等都还是原尺寸的「身形坐标」(Figure 局部),动画代码照旧;
+# 和牌桌打交道的(桌面高度、牌扇、探头距离与软碰撞、第一人称眼睛、铭牌)经 _figure 换到座位坐标。
 
 
+# 缩放与挪过去的髋部(座位坐标)。主菜单头像等单独摆的形象可以按 1.0 原尺寸建(Patron.new(物种, 1.0))
+const FIGURE_SCALE := 0.8
+const FIGURE_HIP := Vector3(0, 0.5, 0.03)
 const ARM_LENGTH := 0.45   # 动森式大头离肩更远:举枪时手要离头心 ≈0.64 m 才能把枪口抵在太阳穴(Q 版 0.4)
 const SHOULDER := Vector3(0.21, 0.38, -0.02)   # 动森式:躯干压扁加宽后肩更低,肩宽不变(举枪够得着大头;Q 版 0.205, 0.485;最初 0.21, 0.52)
 const PAW_RADIUS := 0.058
@@ -130,7 +137,9 @@ const SNEAK_SHIFT := 0.13
 const NAMEPLATE_HEIGHT := 1.92   # 名牌挂点离座位地面:Q 版大头的帽顶坐直时 ≈1.70 m、欢呼蹦起 ≈1.78 m(之前 1.82)
 
 var species_index := 0
+var figure_scale := FIGURE_SCALE
 var alive := true
+var _figure: Node3D   # 腿、身体的父节点:身形坐标 → 座位坐标(figure_transform)
 var body: Node3D
 var head: Node3D
 var fan: Node3D
@@ -193,8 +202,9 @@ var _head_metrics := {}            # 头的解析尺寸(head_metrics),头上挂�
 var _metrics_key := -1
 
 
-func _init(p_species_index := 0) -> void:
+func _init(p_species_index := 0, p_figure_scale := FIGURE_SCALE) -> void:
 	species_index = p_species_index
+	figure_scale = p_figure_scale
 	_phase = species_index * 1.7
 	_noise.seed = species_index * 31 + 7
 	_build()
@@ -217,13 +227,15 @@ func _build() -> void:
 	_look_data = SpeciesLooks.look(species_index)
 	_neck_base = _look_data["neck"].get("base", NECK_BASE) * Vector3(1.0, PatronParts.BODY_SQUASH, 1.0)
 	MeshKit.add(self, PatronParts.chair_mesh(), null).name = "Chair"
-	_legs = _add_part(self, PatronParts.part_mesh(spec, "legs"), "Legs")
+	_figure = MeshKit.pivot(self, Vector3.ZERO, "Figure")
+	_figure.transform = figure_transform(figure_scale)
+	_legs = _add_part(_figure, PatronParts.part_mesh(spec, "legs"), "Legs")
 	_legs.extra_cull_margin = 0.12   # 尾巴在顶点着色器里摆,会超出包围盒
 	var tail: Dictionary = _look_data.get("tail", {})
 	if not tail.is_empty():
 		_legs.set_instance_shader_parameter("tail", Vector4(_phase, tail.get("sway", 0.12), 0.0, 0.0))
 		_legs.set_instance_shader_parameter("tail_root", tail["path"][0])
-	body = MeshKit.pivot(self, HIP, "Body")
+	body = MeshKit.pivot(_figure, HIP, "Body")
 	body.rotation.x = -SEATED_LEAN
 	_add_part(body, PatronParts.part_mesh(spec, "body"), "BodyMesh")
 	_neck = MeshKit.pivot(body, _neck_base, "Neck")
@@ -427,15 +439,27 @@ func _update_neck(delta: float) -> void:
 		if guarded:
 			_guard_neck()
 		left -= step
-	# 偏移按座位坐标给出:换到(前倾、出局时歪倒的)身体局部坐标,头才是水平地探出去
-	head.position = HEAD_PIVOT + body.quaternion.inverse() * _neck_offset
+	# 偏移按座位坐标给出:换到(前倾、出局时歪倒的)身体局部坐标,头才是水平地探出去;身形缩小了,局部偏移相应放大
+	head.position = HEAD_PIVOT + body.quaternion.inverse() * _neck_offset / figure_scale
 	_fit_neck()
 	_place_fan(delta)
 
 
 func _head_base() -> Vector3:
 	# 脖子没探出时的头心(座位坐标,含此刻的前倾、呼吸与蹦跳)
-	return body.transform * (HEAD_PIVOT + Vector3(0, 0.12, 0))
+	return _body_seat() * (HEAD_PIVOT + Vector3(0, 0.12, 0))
+
+
+func _body_seat() -> Transform3D:
+	# 身体局部 → 座位坐标(含身形缩放)
+	return _figure.transform * body.transform
+
+
+static func figure_transform(s: float) -> Transform3D:
+	# 身形坐标 → 座位坐标:绕髋部缩小 s,髋部挪到 FIGURE_HIP;原尺寸(s = 1)时不挪
+	if is_equal_approx(s, 1.0):
+		return Transform3D.IDENTITY
+	return Transform3D(Basis.from_scale(Vector3.ONE * s), FIGURE_HIP - HIP * s)
 
 
 func _seat_frame() -> Transform3D:
@@ -478,13 +502,14 @@ func _neck_lift() -> float:
 	# 头此刻的水平位置要抬多高才从「抬」形状上面过去(灯下封顶)
 	var seat := _seat_frame()
 	var c := seat * (_head_base() + Vector3(_neck_offset.x, 0.0, _neck_offset.z))
-	var m := head_metrics()
+	var m := world_metrics()
 	var h := Vector2(c.x, c.z)
-	var base := seat * (body.transform * _neck_base)
-	var length := (HEAD_PIVOT - _neck_base).length()
-	var span := (seat * (body.transform * (HEAD_PIVOT + body.quaternion.inverse() * Vector3(_neck_offset.x, 0.0, _neck_offset.z)))) - base
+	var base := seat * (_body_seat() * _neck_base)
+	var length := (HEAD_PIVOT - _neck_base).length() * figure_scale
+	var reach := body.quaternion.inverse() * Vector3(_neck_offset.x, 0.0, _neck_offset.z) / figure_scale
+	var span := (seat * (_body_seat() * (HEAD_PIVOT + reach))) - base
 	var thickness := clampf(sqrt(length / maxf(span.length(), 0.001)), NECK_MIN_THICKNESS, 1.0)
-	var radius: float = _look_data["neck"].get("radius", 0.08) * thickness
+	var radius: float = _look_data["neck"].get("radius", 0.08) * figure_scale * thickness
 	var lift := ClipGuard.lift_needed(guard.shapes(), h, c.y, _guard_fwd, m, guard_id, base, radius)
 	return minf(lift, ClipGuard.ceiling_cap(h, c.y, m))
 
@@ -515,12 +540,21 @@ func head_metrics() -> Dictionary:
 	return _head_metrics
 
 
-func guard_metrics() -> Dictionary:
-	# 软碰撞里水平方向用的头部尺寸:head_metrics 再加第一人称的观感留白 guard_extra(只在本机)
+func world_metrics() -> Dictionary:
+	# head_metrics 换成牌桌上的米(乘身形缩放);pivot:头心比头枢轴高多少(脖子连到头枢轴,ClipGuard.lift_needed 用)
 	var m := head_metrics()
+	var out := {"pivot": PatronParts.HEAD_CENTER.y * figure_scale}
+	for key in m:
+		out[key] = m[key] * figure_scale
+	return out
+
+
+func guard_metrics() -> Dictionary:
+	# 软碰撞里水平方向用的头部尺寸:world_metrics 再加第一人称的观感留白 guard_extra(只在本机)
+	var m := world_metrics()
 	if guard_extra <= 0.0:
 		return m
-	var out := m.duplicate()
+	var out := m
 	for key in ["rx", "front", "back"]:
 		out[key] = m[key] + guard_extra
 	return out
@@ -574,17 +608,18 @@ func eye_position() -> Vector3:
 
 
 func eye_local() -> Vector3:
-	# 第一人称的眼睛(座位坐标):头心(不含转头,只含前倾、呼吸、蹦跳与脖子偏移)+ FP_EYE_OFFSET
-	return body.transform * (head.position + Vector3(0, 0.12, 0)) + FP_EYE_OFFSET
+	# 第一人称的眼睛(座位坐标):头心(不含转头,只含前倾、呼吸、蹦跳与脖子偏移)+ FP_EYE_OFFSET(按身形缩放)
+	return _body_seat() * (head.position + Vector3(0, 0.12, 0)) + FP_EYE_OFFSET * figure_scale
 
 
 static func rest_eye() -> Vector3:
 	# 坐着(SEATED_LEAN)、脖子没探出时的眼睛,座位坐标:第一人称镜头的朝向、手里牌扇的位置都按它定
-	return HIP + Basis(Vector3.RIGHT, -SEATED_LEAN) * (HEAD_PIVOT + Vector3(0, 0.12, 0)) + FP_EYE_OFFSET
+	return figure_transform(FIGURE_SCALE) * (HIP + Basis(Vector3.RIGHT, -SEATED_LEAN) * (HEAD_PIVOT + Vector3(0, 0.12, 0))) \
+		+ FP_EYE_OFFSET * FIGURE_SCALE
 
 
 func nameplate_anchor() -> Vector3:
-	return global_transform * Vector3(0, NAMEPLATE_HEIGHT, 0.1)
+	return global_transform * (_figure.transform * Vector3(0, NAMEPLATE_HEIGHT, 0.1))
 
 
 func speech_anchor() -> Vector3:
@@ -592,7 +627,7 @@ func speech_anchor() -> Vector3:
 	# 第一人称坐在座位上(头藏着)时头顶在镜头背后,改挂在眼前上方
 	if _head_hidden:
 		return global_transform * (eye_local() + FP_SPEECH_AHEAD)
-	return head_position() + Vector3.UP * SPEECH_ABOVE_HEAD
+	return head_position() + Vector3.UP * SPEECH_ABOVE_HEAD * figure_scale
 
 
 func set_active(active: bool) -> void:
@@ -628,12 +663,13 @@ func rest_arms(animate := true) -> void:
 
 
 func rest_target(side: float, spread := PAW_SPREAD) -> Vector3:
-	# 手搭在桌上的落点(身体局部坐标):按当前肩位,手臂伸直一臂之长、掌底贴着桌面
-	var shoulder := body.transform * _mirror(SHOULDER, side)
-	var paw_y := SeatLayout.TABLE_TOP + PAW_RADIUS * PAW_SCALE.y
+	# 手搭在桌上的落点(身体局部坐标):按当前肩位,手臂伸直一臂之长、掌底贴着桌面(座位坐标里算,臂长、爪子按身形缩放)
+	var shoulder := _body_seat() * _mirror(SHOULDER, side)
+	var paw_y := SeatLayout.TABLE_TOP + PAW_RADIUS * PAW_SCALE.y * figure_scale
+	var arm := ARM_LENGTH * figure_scale
 	var dy := paw_y - shoulder.y
-	var reach := sqrt(maxf(ARM_LENGTH * ARM_LENGTH - dy * dy, 0.0))
-	var dx := spread * side - shoulder.x
+	var reach := sqrt(maxf(arm * arm - dy * dy, 0.0))
+	var dx := spread * figure_scale * side - shoulder.x
 	var dz := -sqrt(maxf(reach * reach - dx * dx, 0.0))
 	return _to_body(Vector3(shoulder.x + dx, paw_y, shoulder.z + dz))
 
@@ -654,7 +690,7 @@ func present_hand_to(viewer: Vector3) -> void:
 	var normal := (viewer - fan_world).normalized()
 	var bottom := -(Vector3.UP - normal * Vector3.UP.dot(normal)).normalized()
 	var world_basis := Basis(normal.cross(bottom), normal, bottom)
-	hold_fan(_in_seat(Transform3D((seat_basis.inverse() * world_basis).scaled(Vector3.ONE * SELF_FAN_SCALE), fan_seat)))
+	hold_fan(in_seat(Transform3D((seat_basis.inverse() * world_basis).scaled(Vector3.ONE * SELF_FAN_SCALE), fan_seat), figure_scale))
 
 
 func present_hand_first_person(seat: Transform3D, view: Transform3D, cam_offset := FP_FAN_CAM, fan_scale := FP_FAN_SCALE) -> void:
@@ -699,7 +735,7 @@ static func fan_rest_transform(look := {}) -> Transform3D:
 func table_fan_transform() -> Transform3D:
 	# 此刻立在桌面上空的牌扇(座位坐标):静止摆放 + 身体的平移(吓一跳、庆祝蹦起、拆弹发抖、溜了侧挪时牌跟着动);
 	# 探头往前时往前倒、平放到毡面上(fan_tucked)
-	var rest := fan_rest_transform(_look_data).translated(body.position - HIP)
+	var rest := fan_rest_transform(_look_data).translated((body.position - HIP) * figure_scale)
 	var tuck := smoothstep(FAN_TUCK.x, FAN_TUCK.y, -_neck_offset.z) if alive else 0.0
 	return fan_tucked(rest, tuck) if tuck > 0.0 else rest
 
@@ -747,17 +783,17 @@ func _place_fan(delta := 0.0) -> void:
 	var stowing := _fan_stow > 0.0 and alive and (_fan_mode == FAN_HAND or _fan_mode == FAN_FP)
 	match _fan_mode:
 		FAN_TABLE:
-			fan.transform = body.transform.affine_inverse() * table_fan_transform()
+			fan.transform = _body_seat().affine_inverse() * table_fan_transform()
 		FAN_FP:
 			if alive:
 				var held := first_person_fan_now()
 				if stowing:
 					held = blend_transform(held, stowed_fan_transform(), smoothstep(0.0, 1.0, _fan_stow))
-				fan.transform = body.transform.affine_inverse() * held
+				fan.transform = _body_seat().affine_inverse() * held
 		FAN_HAND:
 			if stowing:
-				var held := blend_transform(body.transform * _fan_hold, stowed_fan_transform(), smoothstep(0.0, 1.0, _fan_stow))
-				fan.transform = body.transform.affine_inverse() * held
+				var held := blend_transform(_body_seat() * _fan_hold, stowed_fan_transform(), smoothstep(0.0, 1.0, _fan_stow))
+				fan.transform = _body_seat().affine_inverse() * held
 			elif not fan.transform.is_equal_approx(_fan_hold):
 				fan.transform = _fan_hold
 		FAN_LAP:
@@ -773,12 +809,12 @@ func _place_fan(delta := 0.0) -> void:
 				var turn := from.basis.get_rotation_quaternion().slerp(to.basis.get_rotation_quaternion(), t)
 				var size := from.basis.get_scale().lerp(to.basis.get_scale(), t)
 				xf = Transform3D(Basis(turn).scaled(size), from.origin.lerp(bend, t).lerp(bend.lerp(to.origin, t), t))
-			fan.transform = body.transform.affine_inverse() * xf
+			fan.transform = _body_seat().affine_inverse() * xf
 
 
 func stowed_fan_transform() -> Transform3D:
 	# 收起来的牌扇(座位坐标):桌面上空的位置、矮下去(同探头时)
-	return fan_tucked(fan_rest_transform(_look_data).translated(body.position - HIP), 1.0)
+	return fan_tucked(fan_rest_transform(_look_data).translated((body.position - HIP) * figure_scale), 1.0)
 
 
 static func blend_transform(a: Transform3D, b: Transform3D, t: float) -> Transform3D:
@@ -1078,10 +1114,9 @@ func raise_gun_to_head(gun: Node3D, duration: float) -> void:
 	_has_look = false
 	var tween := pose_right(gun_hand_target(_gun_clearance()), duration, Tween.TRANS_BACK)
 	await tween.finished
-	var aim := gun_pose(right_hand.global_position, head_position())
-	# 身体呼吸是非均匀缩放:各个基先正交化
-	var arm_basis := _arm_r.global_basis.orthonormalized()
-	var hand_basis := arm_basis.inverse() * aim.basis * Revolver3D.HOLD_OFFSET.basis.inverse()
+	# 在身体局部坐标里瞄(枪挂在手上,跟着身形一起缩放,HOLD_OFFSET 是手的局部尺寸);手臂的基是纯旋转
+	var aim := gun_pose(_arm_r.transform * right_hand.position, head.transform * PatronParts.HEAD_CENTER)
+	var hand_basis := _arm_r.basis.orthonormalized().inverse() * aim.basis * Revolver3D.HOLD_OFFSET.basis.inverse()
 	var settle := create_tween()
 	settle.tween_property(right_hand, "quaternion", hand_basis.orthonormalized().get_rotation_quaternion(), GUN_TWIST_TIME) \
 		.set_trans(Tween.TRANS_SINE)
@@ -1182,6 +1217,7 @@ func die(gun: Node3D = null, table_parent: Node3D = null) -> void:
 		var landing := global_transform * Vector3(GUN_DROP.x, SeatLayout.FELT_TOP + Revolver3D.REST_HALF_WIDTH, GUN_DROP.z)
 		drop.tween_property(gun, "global_position", landing, 0.45).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 		drop.parallel().tween_property(gun, "rotation", Vector3(0, gun.rotation.y + 1.8, PI / 2.0 + Revolver3D.REST_ROLL), 0.45)
+		drop.parallel().tween_property(gun, "scale", Vector3.ONE, 0.45)   # 手里的枪跟着身形缩小了,落到桌上恢复原大
 	right_hand.quaternion = Quaternion.IDENTITY
 	_steady = false
 	var fall := create_tween().set_parallel()
@@ -1193,7 +1229,7 @@ func die(gun: Node3D = null, table_parent: Node3D = null) -> void:
 	_tween_arm(fall, _arm_r, HAND_DEAD, 0.5, Tween.TRANS_BOUNCE)
 	_knock_hat_off()
 	_fan_alive = [_fan_mode, fan.transform if _fan_mode != FAN_FP else _fan_hold]
-	_fan_drop_from = Transform3D(Basis(), Vector3.INF) if _fan_mode == FAN_TABLE else body.transform * fan.transform
+	_fan_drop_from = Transform3D(Basis(), Vector3.INF) if _fan_mode == FAN_TABLE else _body_seat() * fan.transform
 	_fan_mode = FAN_LAP
 	_fan_drop = 0.0
 	fall.tween_property(self, "_fan_drop", 1.0, DIE_FAN_TIME)   # 立着的牌按 ease-in 倒下(在 _place_fan 里换算),举着的按 ease-out 送走
@@ -1486,12 +1522,12 @@ func clear_of_head(shoulder: Vector3, dir: Vector3) -> Vector3:
 
 
 func _to_body(seat_point: Vector3) -> Vector3:
-	return body.transform.affine_inverse() * seat_point
+	return _body_seat().affine_inverse() * seat_point
 
 
-static func _in_seat(seat_xform: Transform3D) -> Transform3D:
-	# 座位坐标 → 前倾坐姿下的身体局部坐标:挂在身体上的东西坐着时停在座位里调好的位置
-	return Transform3D(Basis(Vector3.RIGHT, -SEATED_LEAN), HIP).affine_inverse() * seat_xform
+static func in_seat(seat_xform: Transform3D, s := FIGURE_SCALE) -> Transform3D:
+	# 座位坐标 → 前倾坐姿下的身体局部坐标(身形缩放 s):挂在身体上的东西坐着时停在座位里调好的位置
+	return (figure_transform(s) * Transform3D(Basis(Vector3.RIGHT, -SEATED_LEAN), HIP)).affine_inverse() * seat_xform
 
 
 static func _mirror(v: Vector3, side: float) -> Vector3:

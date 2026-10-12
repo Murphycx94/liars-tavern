@@ -151,6 +151,7 @@ func test_muzzle_rests_against_the_temple_not_inside_the_head():
 		var gap := gun.muzzle_transform().origin.distance_to(patron.head_position())
 		# 枪口贴在太阳穴外(持枪净空 + 2~25 mm)。头缩放 1.0 时是原来的 0.172–0.20;动森式大头前后压扁(HEAD_DEPTH)、
 		# 熊的颅骨收窄,太阳穴离头心不再整整是 1.95 倍,下限放到 0.15 倍(大头的 0.29 m),上限不变
-		var r := Patron.gun_clearance_for(patron.species_index)
+		var k := patron.figure_scale   # 角色缩放(净空按原尺寸量的)
+		var r := Patron.gun_clearance_for(patron.species_index) * k
 		assert_between(gap, r + 0.002, r + 0.025, "%s 枪口到头心" % PatronParts.species(patron.species_index)["id"])
-		assert_between(gap, 0.15 * Patron.head_scale(), 0.20 * Patron.head_scale(), "不插进头里,也不离太远")
+		assert_between(gap, 0.15 * Patron.head_scale() * k, 0.20 * Patron.head_scale() * k, "不插进头里,也不离太远")

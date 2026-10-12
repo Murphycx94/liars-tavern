@@ -229,7 +229,7 @@ func test_poker_fan_is_raised_to_the_spec_spot():
 func test_own_fan_faces_the_over_shoulder_camera():
 	var seat := Transform3D(Basis.looking_at(Vector3.FORWARD, Vector3.UP), Vector3(0, 0, 1.75))
 	var fan_local := PokerLayout.fan_transform(seat, OVER_SHOULDER)
-	var body := Transform3D(Basis(Vector3.RIGHT, -Patron.SEATED_LEAN), Patron.HIP)
+	var body := Patron.figure_transform(Patron.FIGURE_SCALE) * Transform3D(Basis(Vector3.RIGHT, -Patron.SEATED_LEAN), Patron.HIP)
 	var fan := seat * body * fan_local
 	var in_seat := seat.affine_inverse() * fan.origin
 	assert_almost_eq(in_seat, Patron.HIP + PokerLayout.poker_fan_offset(), Vector3.ONE * 0.0001)

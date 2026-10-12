@@ -106,7 +106,7 @@ static func _make_stage() -> Node:
 		light.light_energy = spec[2]
 		viewport.add_child(light)
 	for i in Species.count():
-		var patron := Patron.new(i)
+		var patron := Patron.new(i, 1.0)   # 头像按原尺寸拍
 		patron.position = Vector3((i - (Species.count() - 1) * 0.5) * SPACING, 0, 0)
 		patron.rotation.y = PI
 		viewport.add_child(patron)

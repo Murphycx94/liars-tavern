@@ -15,7 +15,7 @@ func _patron(i: int) -> Patron:
 
 func _head_vertices_with_color(p: Patron, want: Color, tolerance := 0.02) -> PackedVector3Array:
 	# HeadMesh 里顶点色接近 want 的点(Head 局部)
-	var mesh: ArrayMesh = (p.get_node("Body/Head/HeadMesh") as MeshInstance3D).mesh
+	var mesh: ArrayMesh = (p.get_node("Figure/Body/Head/HeadMesh") as MeshInstance3D).mesh
 	var out := PackedVector3Array()
 	for surface in mesh.get_surface_count():
 		var arrays := mesh.surface_get_arrays(surface)
@@ -50,7 +50,7 @@ func test_panda_chews_a_bamboo_sprig_on_the_side_away_from_the_gun():
 func test_eyelids_match_the_patch_and_the_white_face():
 	for row: Array in [[PANDA, "patch"], [PENGUIN, "face"]]:
 		var p := _patron(row[0])
-		var lid: Vector3 = p.get_node("Body/Head/Eyes").get_instance_shader_parameter("lid_color")
+		var lid: Vector3 = p.get_node("Figure/Body/Head/Eyes").get_instance_shader_parameter("lid_color")
 		var want: Color = SpeciesLooks.palette(SpeciesLooks.look(row[0]))[row[1]]
 		assert_almost_eq(lid, Vector3(want.r, want.g, want.b), Vector3.ONE * 0.001, Species.IDS[row[0]])
 
@@ -58,7 +58,7 @@ func test_eyelids_match_the_patch_and_the_white_face():
 func test_penguin_has_no_ears_and_a_beanie():
 	var p := _patron(PENGUIN)
 	assert_eq(p._ears.size(), 0, "企鹅没有耳朵")
-	var hat: MeshInstance3D = p.get_node("Body/Head/Hat/HatMesh")
+	var hat: MeshInstance3D = p.get_node("Figure/Body/Head/Hat/HatMesh")
 	assert_gt(hat.mesh.get_faces().size(), 0, "毛线球帽有网格")
 
 

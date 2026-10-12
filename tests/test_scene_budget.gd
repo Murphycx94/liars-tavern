@@ -109,7 +109,7 @@ func test_each_patron_is_merged_per_animation_pivot():
 				if mat != null:
 					materials[mat] = true
 		assert_lte(materials.size(), 2, "每名酒客材质(不含椅子):酒客共享材质 + 眼睛")
-		for pivot in ["Body", "Body/Neck", "Body/Head", "Body/Head/Hat", "Body/ArmL", "Body/ArmR", "Body/ArmR/Hand", "Body/Fan"]:
+		for pivot in ["Figure/Body", "Figure/Body/Neck", "Figure/Body/Head", "Figure/Body/Head/Hat", "Figure/Body/ArmL", "Figure/Body/ArmR", "Figure/Body/ArmR/Hand", "Figure/Body/Fan"]:
 			assert_not_null(patron.get_node_or_null(pivot), "动画枢轴 %s 还在" % pivot)
 
 
@@ -157,7 +157,7 @@ func test_moonlight_only_casts_shadows_from_the_window():
 	assert_eq(lamp.shadow_caster_mask, MeshKit.LAYER_WORLD)
 	assert_eq(fire.shadow_caster_mask, MeshKit.LAYER_WORLD)
 	for patron in _tavern.find_children("*", "Patron", true, false):
-		assert_eq(patron.get_node("Body/BodyMesh").layers, MeshKit.LAYER_WORLD)
+		assert_eq(patron.get_node("Figure/Body/BodyMesh").layers, MeshKit.LAYER_WORLD)
 
 
 func test_each_candle_holder_has_one_light():

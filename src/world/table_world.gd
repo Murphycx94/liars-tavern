@@ -46,8 +46,9 @@ const GROUP_ORBIT_SPREAD := 1.0  # 几个胜者离中点都不超过这么远(�
 const SEAT_MOVE := 0.6           # 换座位、桌子放大时酒客沿圆弧滑到新座位的时长(秒)
 # 德州铭牌挂点(规格 §6.3):高过最高的头顶(动森式大头:羊驼耳尖 ≈1.70 m、礼帽 ≈1.69 m;Q 版统一挂 1.62,礼帽尖
 # 会被铭牌下沿盖住几厘米)。挂高之后相邻座位的铭牌在越肩、观战机位下容易叠在一起(离镜头近的那个投得低),
-# 所以按座位绕桌的序号错开高度:偶数号(含本机 0 号)再高 NAMEPLATE_STAGGER,奇数号在 NAMEPLATE_HEIGHT
-const NAMEPLATE_HEIGHT := 1.74
+# 所以按座位绕桌的序号错开高度:偶数号(含本机 0 号)再高 NAMEPLATE_STAGGER,奇数号在 NAMEPLATE_HEIGHT。
+# 角色缩到 80%(Patron.FIGURE_SCALE)后按同样比例往下挪:原来 1.74 m 时离髋部 1.24 m
+const NAMEPLATE_HEIGHT := 1.49
 const NAMEPLATE_STAGGER := 0.12
 # 翻牌机位朝出牌者偏转的权重(0 = 只看翻牌行,1 = 只看出牌者头部)
 const REVEAL_LIAR_WEIGHT_FRONT := 0.35

@@ -428,7 +428,7 @@ func test_nameplate_anchor_sits_above_the_seat_origin():
 	# 动森式大头之后挂在最高的头顶之上(1.74;Q 版 1.62),绕桌序号为偶数的座位(含本机)再高一档,相邻铭牌错开
 	world.configure_table(POKER_R)
 	_arrange([1, 2, 3, 4, 5, 6, 7, 8])
-	assert_eq(TableWorld.NAMEPLATE_HEIGHT, 1.74)
+	assert_eq(TableWorld.NAMEPLATE_HEIGHT, 1.49)   # 角色缩到 80% 后跟着降
 	for pid in world.patrons:
 		var seat := world.seat_transform(world.seat_angles[pid]).origin
 		var high: bool = (pid - 1) % 2 == 0

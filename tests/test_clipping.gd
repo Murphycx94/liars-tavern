@@ -373,7 +373,7 @@ func test_own_fan_stows_onto_the_table_off_seat_and_comes_back():
 		await wait_seconds(0.6)
 		var stowed := me.transform.affine_inverse() * me.fan.global_transform
 		assert_almost_eq(stowed.origin, me.stowed_fan_transform().origin, Vector3.ONE * 0.01, "收到桌面上空 fp=%s" % fp)
-		assert_lt(stowed.origin.y, held.origin.y - 0.1, "比举着时低得多")
+		assert_lt(stowed.origin.y, held.origin.y - 0.04, "比举着时低")   # 角色缩到 80% 后举着的牌也低了
 		me.set_fan_stowed(false)
 		await wait_seconds(0.6)
 		var back := me.transform.affine_inverse() * me.fan.global_transform

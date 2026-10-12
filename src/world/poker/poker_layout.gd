@@ -128,8 +128,7 @@ static func fan_transform(seat: Transform3D, viewer: Vector3) -> Transform3D:
 	var normal := (viewer - fan_world).normalized()
 	var bottom := -(Vector3.UP - normal * Vector3.UP.dot(normal)).normalized()
 	var world_basis := Basis(normal.cross(bottom), normal, bottom)
-	var in_seat := Transform3D((seat_basis.inverse() * world_basis).scaled(Vector3.ONE * Patron.SELF_FAN_SCALE), fan_seat)
-	return Transform3D(Basis(Vector3.RIGHT, -Patron.SEATED_LEAN), Patron.HIP).affine_inverse() * in_seat
+	return Patron.in_seat(Transform3D((seat_basis.inverse() * world_basis).scaled(Vector3.ONE * Patron.SELF_FAN_SCALE), fan_seat))
 
 
 static func first_person_fan_transform(seat: Transform3D, view: Transform3D) -> Transform3D:

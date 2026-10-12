@@ -2,7 +2,7 @@ class_name ClipGuard
 extends RefCounted
 # 穿模防护(穿模修复 2026-10-10,规格 2026-10-08-cozy-toon-style-design §穿模修复):牌桌上的东西用解析形状描述,
 # 弹簧脖子按它做软碰撞(Patron._update_neck 每个积分小步调一次)。运行时不读网格数组:头的形状是构建时由部件网格的
-# 包围盒换算的(Patron.head_metrics,按物种缓存),障碍物是圆、旋转矩形与「别人的头」(按朝向的椭圆半径)。坐标都是牌桌坐标
+# 包围盒换算的(Patron.head_metrics,按物种缓存;乘身形缩放后是 Patron.world_metrics),障碍物是圆、旋转矩形与「别人的头」(按朝向的椭圆半径)。坐标都是牌桌坐标
 # (TableWorld 局部:酒客、牌层都挂在它下面),水平面用 Vector2(x, z)。
 # 三种处理:
 # - 挡(BLOCK):别人的头与身体、骗子酒馆的目标牌立牌、举在头边的牌扇(越肩时自己的牌扇)、玩法登记的高道具。
@@ -325,7 +325,7 @@ static func lift_needed(shapes_list: Array, h: Vector2, base_y: float, fwd: Vect
 	# 球心在 (h, base_y);取形状占地里离球心最近的点,算那里的下沿要高出顶面 LIFT_MARGIN 还差多少。
 	# 给了 neck_base(脖子根,牌桌坐标)时也让伸长的脖子从形状上面过去:脖子是从脖子根连到头枢轴(头心下 HEAD_CENTER.y)的直线
 	var lift := 0.0
-	var pivot_y := base_y - PatronParts.HEAD_CENTER.y
+	var pivot_y: float = base_y - metrics.get("pivot", PatronParts.HEAD_CENTER.y)
 	for shape in shapes_list:
 		if shape["mode"] != LIFT:
 			continue
