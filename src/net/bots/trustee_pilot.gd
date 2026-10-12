@@ -23,5 +23,11 @@ static func client_anim(pub: Dictionary, full_turn: float) -> float:
 	return maxf(seconds - full_turn, 0.0)
 
 
+static func turn_left(pub: Dictionary) -> float:
+	# 房主给的回合剩余秒数(收到视图那一刻;含待演出)
+	var left: Variant = pub.get("turn_time_left", 0.0)
+	return float(left) if left is float or left is int else 0.0
+
+
 static func flag(value: Variant) -> bool:
 	return value is bool and value

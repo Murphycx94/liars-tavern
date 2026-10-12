@@ -13,6 +13,9 @@ var enabled := false
 func _ready() -> void:
 	super()
 	_net.game_events.connect(_on_game_events)
+	_net.intent_rejected.connect(func(_code: String) -> void:
+		if _active():
+			_retry_after_rejection())
 	_net.game_started.connect(func(_seats: Array) -> void: set_enabled(false))
 	_net.returned_to_lobby.connect(set_enabled.bind(false))
 	_net.left_lobby.connect(func(_reason: String) -> void: set_enabled(false))
@@ -23,7 +26,8 @@ func set_enabled(on: bool) -> void:
 		return
 	enabled = on
 	_decision = {}
-	_chore_wait = -1.0
+	# 两手之间才打开:这一手的 hand_over 已经过去了,也替你点「开始下一手」
+	_chore_wait = SEAT_CHORE_DELAY if on and _net.in_game and _net.last_public.get("phase") == "idle" else -1.0
 	if _ai != null:
 		_ai.cancel_all()
 	changed.emit(on)
@@ -40,8 +44,12 @@ func _active() -> bool:
 
 
 func _controlled_turn() -> Variant:
+	# 公共视图与私有视图分两条消息到:私有视图也是这一手的(手牌对得上)才算轮到自己
 	var me: int = _net.my_pid()
-	return me if _net.last_public.get("current_pid") == me else null
+	var priv: Dictionary = _net.last_private
+	var mine: bool = _net.last_public.get("current_pid") == me and priv.get("hand") == _net.last_public.get("hand") \
+		and priv.get("hole", []).size() == PokerRules.HOLE_CARDS
+	return me if mine else null
 
 
 func _turn_key() -> Variant:
@@ -52,6 +60,10 @@ func _turn_key() -> Variant:
 
 func _anim() -> float:
 	return TrusteePilot.client_anim(_net.last_public, Protocol.TURN_TIMEOUT)
+
+
+func _turn_left() -> float:
+	return TrusteePilot.turn_left(_net.last_public)
 
 
 func _private(_pid: int) -> Dictionary:

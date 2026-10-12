@@ -575,8 +575,9 @@ func set_ai_config(values: Dictionary) -> void:
 
 
 func _reset_bots() -> void:
-	bots.reset()
-	ddz_bots.reset()
+	# 机器人与本机托管:开局、回等待厅、离开时清空(没回来的 AI 请求作废)
+	for driver: BotDriver in [bots, ddz_bots, poker_pilot, ddz_pilot]:
+		driver.reset()
 
 
 func is_ai_bot(pid: Variant) -> bool:

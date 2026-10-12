@@ -218,3 +218,72 @@ func test_client_animation_estimate():
 	assert_almost_eq(TrusteePilot.client_anim({"turn_time_left": 33.5}, 30.0), 3.5, 0.001)
 	assert_eq(TrusteePilot.client_anim({"turn_time_left": 12.0}, 30.0), 0.0)
 	assert_eq(TrusteePilot.client_anim({"turn_time_left": "x"}, 30.0), 0.0)
+
+
+# —— 审查后的修复 ——
+
+func test_late_trustee_does_not_wait_for_ai_past_the_turn():
+	# 回合只剩 2 秒才打开托管:不问 AI,内置策略马上出手,赶在房主到点之前
+	_poker_my_turn()
+	_ai_on(net.poker_pilot)
+	net.last_public = net.last_public.merged({"turn_time_left": 2.0}, true)
+	net.poker_pilot.set_enabled(true)
+	net.poker_pilot._process(STEP)
+	assert_eq(chat.asked.size(), 0, "来不及等 AI 就不问")
+	assert_eq(_acted, [[HOST, BotDriver.SOURCE_TRUSTEE]])
+
+
+func test_ai_wait_is_capped_by_the_turn_left():
+	_poker_my_turn()
+	_ai_on(net.poker_pilot)
+	net.last_public = net.last_public.merged({"turn_time_left": 10.0}, true)
+	net.poker_pilot.set_enabled(true)
+	net.poker_pilot._process(STEP)
+	assert_eq(chat.asked.size(), 1)
+	assert_lte(net.poker_pilot._decision["deadline"], 10.0 - BotDriver.TURN_MARGIN)
+	net.poker_pilot._process(10.0 - BotDriver.TURN_MARGIN)
+	assert_eq(_acted, [[HOST, BotDriver.SOURCE_TRUSTEE]], "AI 没赶上:到点前内置策略出手")
+
+
+func test_rejected_trustee_move_is_retried_once_with_a_safe_move():
+	_poker_my_turn()
+	net.poker_pilot.set_enabled(true)
+	net.poker_pilot._process(STEP)
+	# 模拟这一步刚出手、还没被房主处理就被拒:把决定停在「已出手」,局面不变
+	net.poker_pilot._decision["wait"] = INF
+	net.poker_pilot._retry_after_rejection()
+	assert_eq(_acted, [[HOST, BotDriver.SOURCE_TRUSTEE]], "改出一定合法的一步")
+	net.poker_pilot._retry_after_rejection()
+	assert_eq(_acted.size(), 1, "只重试一次 / 已换人就不重试")
+
+
+func test_poker_pilot_waits_for_this_hands_private_view():
+	_poker_my_turn()
+	net.poker_pilot.set_enabled(true)
+	net.last_private = net.last_private.merged({"hand": -1}, true)
+	net.poker_pilot._process(LONG)
+	assert_eq(_acted, [], "私有视图还是上一手的:先不出手")
+
+
+func test_switching_poker_trustee_on_between_hands_still_clicks_next():
+	_poker_my_turn()
+	net._handle_poker_rpc(HOST, R.FOLD, 0)
+	assert_false(net._session._table.is_confirmed(HOST))
+	net.poker_pilot.set_enabled(true)
+	net.poker_pilot._process(LONG)
+	assert_true(net._session._table.is_confirmed(HOST))
+
+
+func test_ddz_pilot_drops_its_thinking_when_trustee_goes_off():
+	_open(GameMode.DOU_DIZHU, [GUEST, GUEST + 1])
+	for i in 3:
+		if _current() == HOST:
+			break
+		net._handle_session_rpc(_current(), {"kind": "bid", "score": 0})
+	_ai_on(net.ddz_pilot)
+	net.submit_session_intent({"kind": "trustee", "on": true})
+	net.ddz_pilot._process(STEP)
+	assert_false(net.ddz_pilot._decision.is_empty(), "在想")
+	net.submit_session_intent({"kind": "trustee", "on": false})
+	net.ddz_pilot._process(STEP)
+	assert_true(net.ddz_pilot._decision.is_empty(), "关了托管就不想了")

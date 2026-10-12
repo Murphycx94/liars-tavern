@@ -19,6 +19,8 @@ const NAMES := ["阿福", "豆豆", "团团", "旺财", "可乐", "布丁", "年
 const THINK_MIN := 0.8          # 秒:轮到机器人后(演出播完)想这么久再出手,看起来像在考虑
 const THINK_MAX := 2.2
 const NOTICE_COOLDOWN_MS := 30_000
+const MIN_AI_WAIT := 1.0        # 秒:能等 AI 的时间比这还少就不问了,直接用内置策略
+const TURN_MARGIN := 3.0        # 秒:离回合到点还剩这么多时就不等 AI 了(留给内置策略出手、意图送到房主)
 const ANSWER_SNIPPET := 160          # 看不懂的回答在日志里摘录多少字
 const SOURCE_AI := "ai"               # 出手事件的 by:这一步是 AI 出的
 const SOURCE_FALLBACK := "fallback"   # 问过 AI 但没用上(出错、超时、看不懂),内置策略代打
@@ -109,11 +111,13 @@ func _process(delta: float) -> void:
 func _begin(pid: int, key: Variant) -> void:
 	var sit := _situation(pid)
 	var anim := _anim()
+	# 等 AI 不能超过这个回合还剩的时间(托管中途才打开时回合已经过去一截),否则房主先到点代打
+	var deadline := minf(anim + _ai_wait(sit), _turn_left() - TURN_MARGIN)
 	_decision = {
 		"key": key, "pid": pid, "sit": sit, "choice": {}, "quip": -1, "ask": -1, "asked": false,
-		"wait": anim + _rng.randf_range(THINK_MIN, THINK_MAX), "deadline": anim + _ai_wait(sit),
+		"wait": minf(anim + _rng.randf_range(THINK_MIN, THINK_MAX), maxf(deadline, 0.0)), "deadline": deadline,
 	}
-	if ai_active() and _can_ask(sit):
+	if ai_active() and _can_ask(sit) and deadline > MIN_AI_WAIT:
 		var prompts := _prompts(pid, sit)
 		_decision["asked"] = true
 		_decision["ask"] = _ai.ask(config, prompts[0], prompts[1])
@@ -163,6 +167,19 @@ func _finish() -> void:
 		_say(pid, quip)
 
 
+func _retry_after_rejection() -> void:
+	# 托管的意图被房主拒了(局面刚变、AI 给的金额不合法):这一步还没换人就改出一定合法的那一步,只重试一次
+	if _decision.is_empty() or _decision.get("wait") != INF or _decision.get("retried", false):
+		return
+	if _controlled_turn() != _decision["pid"] or _turn_key() != _decision["key"]:
+		return   # 已经换人或换了回合:这条拒绝是旧的
+	_decision["retried"] = true
+	var pid: int = _decision["pid"]
+	var choice := _fallback(_decision["sit"])
+	if not choice.is_empty():
+		_apply(pid, choice, _source(_decision["asked"], false))
+
+
 static func source(asked: bool, by_ai: bool) -> String:
 	if not asked:
 		return ""
@@ -198,6 +215,11 @@ func _turn_key() -> Variant:
 func _anim() -> float:
 	# 客户端还要演多久(出手要等演完)
 	return _net.anim_left()
+
+
+func _turn_left() -> float:
+	# 这个回合还剩多少秒(含待演出);房主的机器人总在回合开头就开始想,不用限
+	return INF
 
 
 func _private(pid: int) -> Dictionary:

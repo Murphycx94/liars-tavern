@@ -8,6 +8,9 @@ extends DdzBots
 func _ready() -> void:
 	super()
 	_net.game_events.connect(_on_game_events)
+	_net.intent_rejected.connect(func(_code: String) -> void:
+		if _active():
+			_retry_after_rejection())
 
 
 func _on_game_events(events: Array) -> void:
@@ -32,9 +35,22 @@ func _turn_key() -> Variant:
 		pub.get("bids")])
 
 
+func _process(delta: float) -> void:
+	# 托管关了(或牌局结束):想到一半的这一步作废,还没回来的 AI 请求取消(不再花你的额度)
+	if not _active():
+		if not _decision.is_empty():
+			reset()
+		return
+	super(delta)
+
+
 func _anim() -> float:
 	var full := DouDizhuSession.BID_TIMEOUT if _net.last_public.get("phase") == "bidding" else Protocol.TURN_TIMEOUT
 	return TrusteePilot.client_anim(_net.last_public, full)
+
+
+func _turn_left() -> float:
+	return TrusteePilot.turn_left(_net.last_public)
 
 
 func _private(_pid: int) -> Dictionary:
