@@ -1,7 +1,7 @@
 class_name PokerNameplate
 extends PanelContainer
 # 德州铭牌(规格 §6.3,≤ 150×64):两行——名字(超长省略号)+ D/小盲/大盲徽记;筹码 + 状态。
-# 行动者铜色高亮;弃牌、观战、已离开的人变暗。挂点由牌桌用 TableWorld.nameplate_anchor 给 WorldLabels。
+# AI 接管的机器人名字旁有蓝色「AI」小标。行动者铜色高亮;弃牌、观战、已离开的人变暗。挂点由牌桌用 TableWorld.nameplate_anchor 给 WorldLabels。
 # 文案只写数字与状态,不出现花色符号。两行各自按文字宽度给足最小宽度(带省略号的 Label 最小宽度只剩「…」),
 # 整体宽度由较长的那行决定,再夹到 150;名字短、第二行长时第二行不会被截成「2,65」。
 
@@ -12,6 +12,9 @@ const NAME_FONT := 16
 const INFO_FONT := 13
 const BADGE_FONT := 12
 const BADGE_ROOM := 44.0   # 给「D·小盲」徽记留的宽度
+const AI_ROOM := 24.0      # AI 机器人的「AI」小标
+const AI_TAG := "AI"
+const AI_COLOR := Color(0.55, 0.85, 0.95)
 const ACTIVE_BG := Color(0.25, 0.15, 0.06, 0.85)
 const DIMMED := Color(0.6, 0.6, 0.6, 0.75)
 const STATUS_TEXT := {
@@ -68,7 +71,13 @@ static func has_left(player: Dictionary) -> bool:
 	return left is bool and left
 
 
-func _init(display_name: String) -> void:
+static func shown_name(display_name: String, ai: bool) -> String:
+	# AI 机器人:「机器人·」前缀让位给「AI」小标(铭牌只有 150 宽,前缀加小标会把名字挤成省略号)
+	return display_name.trim_prefix(PokerBots.NAME_PREFIX) if ai else display_name
+
+
+func _init(display_name: String, ai := false) -> void:
+	display_name = shown_name(display_name, ai)
 	_style = UiTheme.panel_box(UiTheme.PANEL_SOFT, Color(UiTheme.BRASS, 0.45), 1, 10)
 	_style.content_margin_left = PADDING.x
 	_style.content_margin_right = PADDING.x
@@ -87,9 +96,14 @@ func _init(display_name: String) -> void:
 	# 带省略号的 Label 最小宽度只剩「…」:按文字宽度给足,超长昵称才截断
 	_name.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	var text_width := ceilf(font.get_string_size(display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_FONT).x)
-	_name.custom_minimum_size.x = minf(text_width, MAX_SIZE.x - 2.0 * PADDING.x - BADGE_ROOM)
+	_name.custom_minimum_size.x = minf(text_width, MAX_SIZE.x - 2.0 * PADDING.x - BADGE_ROOM - (AI_ROOM if ai else 0.0))
 	_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(_name)
+	if ai:
+		var tag := UiTheme.label(AI_TAG, BADGE_FONT, AI_COLOR, UiTheme.body_font())
+		tag.name = "AiTag"
+		tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(tag)
 	_badge = UiTheme.label("", BADGE_FONT, UiTheme.BRASS_BRIGHT, UiTheme.body_font())
 	_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(_badge)

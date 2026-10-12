@@ -553,6 +553,21 @@ func is_bot(pid: int) -> bool:
 	return is_host and _lobby != null and _lobby.is_bot(pid)
 
 
+func is_ai_bot(pid: Variant) -> bool:
+	# 各端都能问(看名单行的 bot 与 meta 的 bot_ai,来自房主,不可信:类型不对当否):铭牌据此标「AI」
+	if not _flag(lobby_meta.get("bot_ai")):
+		return false
+	for p in lobby_players:
+		if p is Dictionary and p.get("pid") == pid:
+			return _flag(p.get("bot"))
+	return false
+
+
+static func _flag(value: Variant) -> bool:
+	# 不可信的布尔字段:不是 bool 就当否(String == bool 在 GDScript 里是脚本错误)
+	return value is bool and value
+
+
 func refresh_bot_meta() -> void:
 	# AI 设置改了:名单 meta 里的「AI 接管」跟着变
 	if is_host and _lobby != null:
@@ -568,14 +583,19 @@ func bot_private_view(pid: int) -> Dictionary:
 	return _session.private_view(pid) if in_game and _session != null and is_bot(pid) else {}
 
 
-func bot_intent(pid: int, intent: Dictionary) -> bool:
-	# 机器人出手:和真人意图同一套会话校验;被拒返回 false(不发拒绝消息,机器人没有连接)
+func bot_intent(pid: int, intent: Dictionary, source := "") -> bool:
+	# 机器人出手:和真人意图同一套会话校验;被拒返回 false(不发拒绝消息,机器人没有连接)。
+	# source 非空时(接了 AI 的机器人:"ai" 或 "fallback")标在它的 action 事件上,各端日志据此写「(AI)」「(内置策略)」
 	if not in_game or _session == null or not is_bot(pid):
 		return false
 	var result: Dictionary = _session.handle_intent(pid, intent)
 	if not result["ok"]:
 		return false
-	_after_action(result["events"], result["turn_action"])
+	var events: Array = result["events"]
+	if source != "":
+		events = events.map(func(ev: Dictionary) -> Dictionary:
+			return ev.merged({"by": source}, true) if ev.get("type") == "action" and ev.get("pid") == pid else ev)
+	_after_action(events, result["turn_action"])
 	return true
 
 

@@ -18,6 +18,9 @@ const THINK_MAX := 2.2
 const AI_WAIT := 20.0           # 秒:最多等 AI 这么久(从演出播完算起),之后改用内置策略;回合限时 30 秒
 const SEAT_CHORE_DELAY := 0.8   # 秒:一手结束(演完)后这么久,机器人点「开始下一手」或再领
 const NOTICE_COOLDOWN_MS := 30_000
+const ANSWER_SNIPPET := 160          # 看不懂的回答在日志里摘录多少字
+const SOURCE_AI := "ai"               # action 事件的 by:这一步是 AI 出的
+const SOURCE_FALLBACK := "fallback"   # 问过 AI 但没用上(出错、超时、看不懂),内置策略代打
 
 var config := {}                 # AI 设置(AiSettings 的字典);房主在设置面板保存后经 set_config 更新
 var _net: Node = null            # NetworkManager(父节点)
@@ -122,6 +125,7 @@ func _begin(pid: int) -> void:
 	if ai_active() and not sit["legal"].is_empty():
 		var style := style_of(pid)
 		var bot_label: String = _names().get(pid, bot_name(pid))
+		_decision["asked"] = true
 		_decision["ask"] = _ai.ask(config, PokerBotPrompt.system_prompt(bot_label, style["persona"]),
 			PokerBotPrompt.user_prompt(sit, _net.last_public, _names(), _log))
 
@@ -136,7 +140,8 @@ func _on_answered(id: int, ok: bool, text: String) -> void:
 		return
 	var parsed := PokerBotPrompt.parse(text, _decision["sit"]["legal"])
 	if not parsed["ok"]:
-		_notify("AI 的回答看不懂(%s),机器人这一步按内置策略打" % parsed["error"])
+		_notify("AI 的回答看不懂(%s),机器人这一步按内置策略打" % parsed["error"],
+			"回答开头:" + text.strip_edges().substr(0, ANSWER_SNIPPET).replace("\n", " "))
 		return
 	_decision["choice"] = {"action": parsed["action"], "amount": parsed["amount"]}
 	_decision["quip"] = parsed["quip"]
@@ -157,13 +162,21 @@ func _finish() -> void:
 	if choice.is_empty():
 		_decision = {}   # 开始想的时候视图里还没有它的可选动作:下一帧按最新视图重来
 		return
-	if not _net.bot_intent(pid, {"kind": choice["action"], "amount": choice["amount"]}):
+	# 接了 AI 时给事件标来源:AI 出的「ai」,AI 没接上、内置策略代打的「fallback」;没接 AI 不标
+	var asked: bool = _decision.get("asked", false)
+	if not _net.bot_intent(pid, {"kind": choice["action"], "amount": choice["amount"]}, _source(asked, by_ai)):
 		choice = PokerBotBrain.fallback(sit["legal"])
 		by_ai = false
-		_net.bot_intent(pid, {"kind": choice["action"], "amount": choice["amount"]})
+		_net.bot_intent(pid, {"kind": choice["action"], "amount": choice["amount"]}, _source(asked, false))
 	decided.emit(pid, choice["action"], choice["amount"], by_ai)
 	if quip >= 0:
 		_net.bot_quip(pid, quip)
+
+
+static func _source(asked: bool, by_ai: bool) -> String:
+	if not asked:
+		return ""
+	return SOURCE_AI if by_ai else SOURCE_FALLBACK
 
 
 func _tick_chores(delta: float) -> void:
@@ -188,8 +201,9 @@ func _tick_chores(delta: float) -> void:
 				_net.bot_intent(pid, {"kind": PokerRules.NEXT, "amount": 0})
 
 
-func _notify(text: String) -> void:
-	push_warning("德州机器人:" + text)
+func _notify(text: String, detail := "") -> void:
+	# detail 只进日志(排查用),不上房主屏幕
+	push_warning("德州机器人:" + text + ((";" + detail) if detail != "" else ""))
 	var now := Time.get_ticks_msec()
 	if now - _noticed_at >= NOTICE_COOLDOWN_MS:
 		_noticed_at = now

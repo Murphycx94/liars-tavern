@@ -299,7 +299,7 @@ func _sync_nameplates() -> void:
 		var wanted: bool = pid != my_pid and world.patrons.has(pid) and state.seats.has(pid)
 		var plate: Control = app.labels.get_node_for(PLATE_KEY % pid)
 		if wanted and plate == null:
-			app.labels.track(PLATE_KEY % pid, PokerNameplate.new(name_of(pid)), world.nameplate_anchor.bind(pid))
+			app.labels.track(PLATE_KEY % pid, PokerNameplate.new(name_of(pid), Net.is_ai_bot(pid)), world.nameplate_anchor.bind(pid))
 		elif not wanted and plate != null:
 			app.labels.untrack(PLATE_KEY % pid)
 	_update_nameplates()
