@@ -56,7 +56,7 @@ var _species_wanted := Species.UNASSIGNED   # 仅客户端:等待房主确认的
 var banter: Banter = null          # 丢番茄与快捷语(子节点 /root/Net/Banter,RPC 在它身上,本类的 RPC 表不变)
 var bots: PokerBots = null         # 仅房主用:德州机器人(子节点 /root/Net/PokerBots,没有 RPC);AI 设置以它的 config 为准
 var ddz_bots: DdzBots = null       # 仅房主用:斗地主机器人(子节点 /root/Net/DdzBots,没有 RPC)
-const BOT_AI_EVENTS := ["action", "bid", "played", "passed"]   # 机器人按 AI 出手时带 "ai" 标记的事件(德州 / 斗地主)
+const BOT_SOURCE_EVENTS := ["action", "bid", "played", "passed"]   # 机器人出手来源("by")标在哪些事件上(德州 / 斗地主)
 var _next_bot_id := -1             # 仅房主:下一个机器人的 pid(-1、-2…,只减不增,请走后不复用)
 
 
@@ -570,6 +570,21 @@ func _reset_bots() -> void:
 	ddz_bots.reset()
 
 
+func is_ai_bot(pid: Variant) -> bool:
+	# 各端都能问(看名单行的 bot 与 meta 的 bot_ai,来自房主,不可信:类型不对当否):铭牌据此标「AI」
+	if not _flag(lobby_meta.get("bot_ai")):
+		return false
+	for p in lobby_players:
+		if p is Dictionary and p.get("pid") == pid:
+			return _flag(p.get("bot"))
+	return false
+
+
+static func _flag(value: Variant) -> bool:
+	# 不可信的布尔字段:不是 bool 就当否(String == bool 在 GDScript 里是脚本错误)
+	return value is bool and value
+
+
 func refresh_bot_meta() -> void:
 	# AI 设置改了:名单 meta 里的「AI 接管」跟着变
 	if is_host and _lobby != null:
@@ -585,19 +600,19 @@ func bot_private_view(pid: int) -> Dictionary:
 	return _session.private_view(pid) if in_game and _session != null and is_bot(pid) else {}
 
 
-func bot_intent(pid: int, intent: Dictionary, by_ai := false) -> bool:
+func bot_intent(pid: int, intent: Dictionary, source := "") -> bool:
 	# 机器人出手:和真人意图同一套会话校验;被拒返回 false(不发拒绝消息,机器人没有连接)。
-	# by_ai:这一步是按 AI 的回答出的,它自己的出手事件带上 "ai": true(各端的记录据此标「(ai)」;不是秘密,
-	# 等待厅名单本来就标着「AI」;旧版客户端不认识这个键,照常演)
+	# source 非空时(接了 AI 的机器人:"ai" 或 "fallback")标在它自己的出手事件上(德州 action,斗地主 bid / played / passed),
+	# 各端日志据此写「(AI)」「(内置策略)」;不是秘密(等待厅名单本来就标着「AI」),旧版客户端不认识这个键,照常演
 	if not in_game or _session == null or not is_bot(pid):
 		return false
 	var result: Dictionary = _session.handle_intent(pid, intent)
 	if not result["ok"]:
 		return false
 	var events: Array = result["events"]
-	if by_ai:
+	if source != "":
 		events = events.map(func(ev: Dictionary) -> Dictionary:
-			return ev.merged({"ai": true}) if ev.get("pid") == pid and BOT_AI_EVENTS.has(ev.get("type")) else ev)
+			return ev.merged({"by": source}, true) if ev.get("pid") == pid and BOT_SOURCE_EVENTS.has(ev.get("type")) else ev)
 	_after_action(events, result["turn_action"])
 	return true
 

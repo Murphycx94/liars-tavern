@@ -90,6 +90,14 @@ func test_raise_without_raise_rights_becomes_a_call():
 	assert_eq(PokerBotPrompt.parse('{"action": "allin"}', legal)["action"], R.CALL)
 
 
+func test_slightly_broken_json_is_salvaged():
+	# 实测 gpt-4.1 偶尔多写一个引号
+	var broken := PokerBotPrompt.parse('{"action": "raise", "amount": 130", "quip": null}', _owe(20))
+	assert_eq([broken["ok"], broken["action"], broken["amount"], broken["quip"]], [true, R.RAISE, 130, -1])
+	var quoted := PokerBotPrompt.parse('{"action": "call", "quip": "4",}', _owe(20))
+	assert_eq([quoted["action"], quoted["quip"]], [R.CALL, 4])
+
+
 func test_bad_answers_are_rejected():
 	for text in ["我跟", "{不是 json}", '{"amount": 10}', '{"action": "dance"}', '["call"]', '{"action": 3}']:
 		assert_false(PokerBotPrompt.parse(text, _owe(20))["ok"], text)
@@ -97,6 +105,7 @@ func test_bad_answers_are_rejected():
 
 func test_quip_must_be_a_valid_index():
 	assert_eq(PokerBotPrompt.parse('{"action": "call", "quip": 99}', _owe(20))["quip"], -1)
-	assert_eq(PokerBotPrompt.parse('{"action": "call", "quip": "1"}', _owe(20))["quip"], -1)
+	assert_eq(PokerBotPrompt.parse('{"action": "call", "quip": "1"}', _owe(20))["quip"], 1, "字符串编号也认")
+	assert_eq(PokerBotPrompt.parse('{"action": "call", "quip": "哇"}', _owe(20))["quip"], -1)
 	assert_eq(PokerBotPrompt.parse('{"action": "call", "quip": null}', _owe(20))["quip"], -1)
 	assert_eq(PokerBotPrompt.parse('{"action": "call", "quip": 0}', _owe(20))["quip"], 0)

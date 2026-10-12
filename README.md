@@ -258,8 +258,11 @@
   - AI 出错、20 秒没回答或回答看不懂时,机器人这一步改用内置策略,房主屏幕上会提示一句(30 秒内只提示一次)。
   - 地址、Key、模型只保存在房主这台电脑的设置文件里(明文),不会发给其他玩家;别把设置文件发给别人。
 - 等待厅里机器人那一行标「机器人」或「AI」(所有人都看得到);牌桌上它们的名字是「机器人·阿福」这样。
-- 牌桌右侧的记录里,机器人按 AI 的回答出的那一步末尾带「(ai)」(所有人都看得到);不带的是内置策略出的
-  (没开 AI,或这一步 AI 出错 / 超时 / 答错改用了内置策略)。斗地主也一样。
+- 怎么看出 AI 有没有接管(所有人都看得到):
+  - 等待厅里机器人那一行标「AI」(AI 接管)或「机器人」(内置策略);房主那一行小字写「机器人由 AI 接管 · 模型名」。
+  - 德州牌桌上 AI 机器人的铭牌是「阿福 AI」(蓝色小标),内置策略的还叫「机器人·阿福」。
+  - 右下的事件记录里,AI 打的那一步后面标「(AI)」;AI 没接上、这一步由内置策略代打的标「(内置策略)」。斗地主的记录也一样。
+  - 模型偶尔写出差一点的 JSON(多个引号之类)也能认出来;实在看不懂才退回内置策略。
 
 完整规格见 [docs/superpowers/specs/2026-10-07-texas-holdem-design.md](docs/superpowers/specs/2026-10-07-texas-holdem-design.md)。
 
@@ -268,8 +271,9 @@
 ```bash
 export GODOT=/Applications/Godot.app/Contents/MacOS/Godot
 
-# 单元测试(GUT)
-$GODOT --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit
+# 单元测试(GUT)。--fixed-fps 60 让游戏时间按帧推进、不等真实时间,全量 20 秒左右(不加要 6 分多钟);
+# 测试里要等真实时间的(工作线程、网络)用 Time.get_ticks_msec() 限时,别数帧
+$GODOT --headless --fixed-fps 60 --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit
 
 # 联机冒烟:1 房主 + 2 个 bot(一个走局域网发现、一个直连),无头跑完整局;
 # 三人都要企鹅(--species=penguin),检查三端的形象表一致、房主拿到企鹅、另外两人各不相同;

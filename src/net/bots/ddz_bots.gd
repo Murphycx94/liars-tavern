@@ -67,19 +67,19 @@ func _brain(pid: int, sit: Dictionary) -> Dictionary:
 	return DdzBotBrain.decide(sit, style_of(pid), _rng)
 
 
-func _apply(pid: int, choice: Dictionary, by_ai: bool) -> bool:
+func _apply(pid: int, choice: Dictionary, from: String) -> bool:
 	# 出牌意图要手牌下标:按此刻的私有视图换算(手牌升序)
 	match choice.get("kind", ""):
 		"bid":
-			return _net.bot_intent(pid, {"kind": "bid", "score": choice["score"]}, by_ai)
+			return _net.bot_intent(pid, {"kind": "bid", "score": choice["score"]}, from)
 		"pass":
-			return _net.bot_intent(pid, {"kind": "pass"}, by_ai)
+			return _net.bot_intent(pid, {"kind": "pass"}, from)
 		"play":
 			var hand: Array = _net.bot_private_view(pid).get("cards", [])
 			var indices := DdzState.indices_of(hand, choice["cards"])
 			if indices.is_empty() or indices.has(-1):
 				return false
-			return _net.bot_intent(pid, {"kind": "play", "cards": indices}, by_ai)
+			return _net.bot_intent(pid, {"kind": "play", "cards": indices}, from)
 	return false
 
 

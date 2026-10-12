@@ -28,7 +28,7 @@ class FakeChat:
 var net: StubNet
 var chat: FakeChat
 var _acted: Array = []   # 房主收到的 bid / played / passed 事件:[pid, type, timed_out 或 auto]
-var _ai_marks: Array = []   # 同上,这些事件里的 "ai" 标记(没有记 false)
+var _by: Array = []      # 同上,事件里标的来源(没标为 "")
 
 
 func before_each():
@@ -46,12 +46,12 @@ func before_each():
 	net.ddz_bots._ai = chat
 	net.ddz_bots.add_child(chat)
 	_acted = []
-	_ai_marks = []
+	_by = []
 	net.game_events.connect(func(events: Array) -> void:
 		for ev in events:
 			if ["bid", "played", "passed"].has(ev["type"]):
 				_acted.append([ev["pid"], ev["type"], ev.get("timed_out", false) or ev.get("auto", false)])
-				_ai_marks.append(ev.get("ai", false)))
+				_by.append(ev.get("by", "")))
 
 
 func after_each():
@@ -107,7 +107,7 @@ func _bot_turn() -> int:
 		_host_acts()
 	net._anim_left = 0.0
 	_acted = []
-	_ai_marks = []
+	_by = []
 	return _current()
 
 
@@ -150,6 +150,7 @@ func test_host_and_two_bots_play_many_hands():
 	var bot_moves := _acted.filter(func(a: Array) -> bool: return net.is_bot(a[0]))
 	assert_gt(bot_moves.size(), 20)
 	assert_true(bot_moves.all(func(a: Array) -> bool: return not a[2]), "机器人从不超时、不被托管代打")
+	assert_true(_by.all(func(b: String) -> bool: return b == ""), "没接 AI 时不标来源")
 	for pid in net._lobby.bot_ids():
 		assert_false(s.trustee[pid])
 
@@ -164,8 +165,8 @@ func test_bots_wait_for_the_animation_before_acting():
 	assert_eq(_acted, [], "演出还没播完,机器人不出手")
 	for i in ceili(BotDriver.THINK_MAX / STEP) + 2:
 		net.ddz_bots._process(STEP)
-	assert_eq(_acted.size(), 1)
-	assert_eq(_acted[0][0], bot, "演完、想完就出手")
+	assert_false(_acted.is_empty())
+	assert_eq(_acted[0][0], bot, "演完、想完就出手(之后下一个机器人也可能接着出)")
 
 
 func test_a_bot_in_trustee_turns_it_off():
@@ -193,9 +194,9 @@ func test_ai_answer_drives_the_bid():
 	assert_eq(_acted, [[bot, "bid", false]], "按 AI 的回答叫分")
 	assert_eq(_state().bids[-1], {"pid": bot, "score": top})
 	assert_eq(heard, [[bot, 2]], "AI 选的快捷对话也说了")
-	assert_eq(_ai_marks, [true], "AI 出的这一步带 ai 标记(记录里标「(ai)」)")
+	assert_eq(_by, [BotDriver.SOURCE_AI], "AI 出的这一步标上来源(记录里写「(AI)」)")
 	var sent_events: Array = net.sent.filter(func(s: Array) -> bool: return s[1] == "rpc_game_events")
-	assert_true(sent_events[-1][2][0].any(func(ev: Dictionary) -> bool: return ev.get("ai", false)), "发给客人的事件也带标记")
+	assert_true(sent_events[-1][2][0].any(func(ev: Dictionary) -> bool: return ev.get("by") == BotDriver.SOURCE_AI), "发给客人的事件也带标记")
 
 
 func test_ai_answer_drives_a_play():
@@ -215,14 +216,14 @@ func test_ai_answer_drives_a_play():
 	net.ddz_bots.on_events([{"type": "turn", "pid": bot}])
 	net._anim_left = 0.0
 	_acted = []
-	_ai_marks = []
+	_by = []
 	net.ddz_bots._process(STEP)
 	assert_eq(chat.asked.size(), 1)
 	assert_string_contains(chat.asked[0]["user"], "你的手牌(3 张):3 3 Q")
 	net.ddz_bots._on_answered(101, true, '{"action": "play", "cards": ["3", "3"]}')
 	net.ddz_bots._process(BotDriver.THINK_MAX)
 	assert_eq(_acted, [[bot, "played", false]])
-	assert_eq(_ai_marks, [true])
+	assert_eq(_by, [BotDriver.SOURCE_AI])
 	assert_eq(s.hand_of(bot), [DdzHand.make(9, 0)], "出了一对 3")
 
 
@@ -235,7 +236,7 @@ func test_ai_error_falls_back_to_the_brain():
 	net.ddz_bots._process(BotDriver.THINK_MAX)
 	assert_eq(_acted.size(), 1)
 	assert_eq(_acted[0][0], bot, "内置策略接手")
-	assert_eq(_ai_marks, [false], "内置策略出的不带 ai 标记")
+	assert_eq(_by, [BotDriver.SOURCE_FALLBACK], "AI 出错、内置策略代打的标「(内置策略)」")
 	assert_signal_emitted(net.ddz_bots, "notice")
 
 
@@ -248,6 +249,7 @@ func test_ai_illegal_answer_falls_back_to_the_brain():
 	net.ddz_bots._process(BotDriver.THINK_MAX)
 	assert_eq(_acted.size(), 1, "叫分阶段出牌判无效,内置策略叫分")
 	assert_eq(_acted[0], [bot, "bid", false])
+	assert_eq(_by, [BotDriver.SOURCE_FALLBACK])
 	assert_signal_emitted(net.ddz_bots, "notice")
 
 

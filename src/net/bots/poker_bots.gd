@@ -69,8 +69,8 @@ func _brain(pid: int, sit: Dictionary) -> Dictionary:
 	return PokerBotBrain.decide(sit, style_of(pid), _rng)
 
 
-func _apply(pid: int, choice: Dictionary, by_ai: bool) -> bool:
-	return _net.bot_intent(pid, {"kind": choice["action"], "amount": choice["amount"]}, by_ai)
+func _apply(pid: int, choice: Dictionary, from: String) -> bool:
+	return _net.bot_intent(pid, {"kind": choice["action"], "amount": choice["amount"]}, from)
 
 
 func _fallback(sit: Dictionary) -> Dictionary:

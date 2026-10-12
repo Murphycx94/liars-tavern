@@ -17,13 +17,16 @@ const NAMES := ["阿福", "豆豆", "团团", "旺财", "可乐", "布丁", "年
 const THINK_MIN := 0.8          # 秒:轮到机器人后(演出播完)想这么久再出手,看起来像在考虑
 const THINK_MAX := 2.2
 const NOTICE_COOLDOWN_MS := 30_000
+const ANSWER_SNIPPET := 160          # 看不懂的回答在日志里摘录多少字
+const SOURCE_AI := "ai"               # 出手事件的 by:这一步是 AI 出的
+const SOURCE_FALLBACK := "fallback"   # 问过 AI 但没用上(出错、超时、看不懂),内置策略代打
 
 var config := {}                 # AI 设置(AiSettings 的字典);房主在设置面板保存后经 set_config 更新
 var _net: Node = null            # NetworkManager(父节点)
 var _ai: AiChat = null
 var _rng := RandomNumberGenerator.new()
 var _turn_serial := 0            # 每个 turn 事件加一:同一个机器人连着两次轮到也能区分
-var _decision := {}              # 正在想的一步:{"serial", "pid", "sit", "wait", "deadline", "ask", "choice", "quip"}
+var _decision := {}              # 正在想的一步:{"serial", "pid", "sit", "wait", "deadline", "ask", "asked", "choice", "quip"}
 var _noticed_at := -NOTICE_COOLDOWN_MS
 
 
@@ -102,11 +105,12 @@ func _begin(pid: int) -> void:
 	var sit := _situation(pid)
 	var anim: float = _net.anim_left()
 	_decision = {
-		"serial": _turn_serial, "pid": pid, "sit": sit, "choice": {}, "quip": -1, "ask": -1,
+		"serial": _turn_serial, "pid": pid, "sit": sit, "choice": {}, "quip": -1, "ask": -1, "asked": false,
 		"wait": anim + _rng.randf_range(THINK_MIN, THINK_MAX), "deadline": anim + _ai_wait(sit),
 	}
 	if ai_active() and _can_ask(sit):
 		var prompts := _prompts(pid, sit)
+		_decision["asked"] = true
 		_decision["ask"] = _ai.ask(config, prompts[0], prompts[1])
 
 
@@ -120,7 +124,8 @@ func _on_answered(id: int, ok: bool, text: String) -> void:
 		return
 	var parsed := _parse(text, _decision["sit"])
 	if not parsed["ok"]:
-		_notify("AI 的回答看不懂(%s),机器人这一步按内置策略打" % parsed["error"])
+		_notify("AI 的回答看不懂(%s),机器人这一步按内置策略打" % parsed["error"],
+			"回答开头:" + text.strip_edges().substr(0, ANSWER_SNIPPET).replace("\n", " "))
 		return
 	_decision["choice"] = parsed["choice"]
 	_decision["quip"] = parsed["quip"]
@@ -141,18 +146,27 @@ func _finish() -> void:
 	if choice.is_empty():
 		_decision = {}   # 开始想的时候视图里还没有它的可选动作:下一帧按最新视图重来
 		return
-	if not _apply(pid, choice, by_ai):
+	# 接了 AI 时给事件标来源:AI 出的「ai」,AI 没接上、内置策略代打的「fallback」;没接 AI 不标
+	var asked: bool = _decision["asked"]
+	if not _apply(pid, choice, source(asked, by_ai)):
 		choice = _fallback(sit)
 		by_ai = false
-		_apply(pid, choice, false)
+		_apply(pid, choice, source(asked, false))
 	var summary := _summary(choice)
 	decided.emit(pid, summary[0], summary[1], by_ai)
 	if quip >= 0:
 		_net.bot_quip(pid, quip)
 
 
-func _notify(text: String) -> void:
-	push_warning("%s:%s" % [_log_label(), text])
+static func source(asked: bool, by_ai: bool) -> String:
+	if not asked:
+		return ""
+	return SOURCE_AI if by_ai else SOURCE_FALLBACK
+
+
+func _notify(text: String, detail := "") -> void:
+	# detail 只进日志(排查用),不上房主屏幕
+	push_warning("%s:%s%s" % [_log_label(), text, (";" + detail) if detail != "" else ""])
 	var now := Time.get_ticks_msec()
 	if now - _noticed_at >= NOTICE_COOLDOWN_MS:
 		_noticed_at = now
@@ -190,8 +204,8 @@ func _brain(_pid: int, _sit: Dictionary) -> Dictionary:
 	return {}
 
 
-func _apply(_pid: int, _choice: Dictionary, _by_ai: bool) -> bool:
-	# 经 NetworkManager.bot_intent 出手(by_ai 原样传过去,事件带上 AI 标记);被拒返回 false
+func _apply(_pid: int, _choice: Dictionary, _source: String) -> bool:
+	# 经 NetworkManager.bot_intent 出手(来源 source 原样传过去,标在出手事件上);被拒返回 false
 	return false
 
 

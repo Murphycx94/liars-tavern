@@ -359,10 +359,11 @@ func _player_row(player: Dictionary, _index: int) -> Control:
 	row.add_child(name_label)
 	if player["is_host"]:
 		row.add_child(UiTheme.label("房主", 15, UiTheme.BRASS))
-	var is_bot: bool = player.get("bot", false) == true
+	var bot_flag: Variant = player.get("bot", false)
+	var is_bot: bool = bot_flag is bool and bot_flag
 	if is_bot:
 		# 机器人永远是准备好的:不显示准备状态,标出由谁来打
-		row.add_child(UiTheme.label("AI" if Net.lobby_meta.get("bot_ai", false) == true else "机器人", 15, UiTheme.BRASS))
+		row.add_child(UiTheme.label("AI" if Net.is_ai_bot(player["pid"]) else "机器人", 15, UiTheme.BRASS))
 	else:
 		var badge := UiTheme.label("已准备" if player["ready"] else "未准备", 15,
 			UiTheme.TRUTH if player["ready"] else UiTheme.MUTED)

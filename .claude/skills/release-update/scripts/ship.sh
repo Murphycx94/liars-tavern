@@ -53,7 +53,8 @@ run_tests() {
 	echo "在 ${REF_SHA:0:7} 的干净 worktree 里跑单元测试…"
 	local log want ran
 	log="$(mktemp "${TMPDIR:-/tmp}/liars_ship_gut.XXXXXX")"
-	if ! "$GODOT" --headless --path "$WT" -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit >"$log" 2>&1; then
+	# --fixed-fps 60:每帧按 1/60 秒推进、不等真实时间,wait_seconds 几乎不花时间(全量 6 分多钟 → 20 秒左右)
+	if ! "$GODOT" --headless --fixed-fps 60 --path "$WT" -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit >"$log" 2>&1; then
 		grep -E "\[Failed\]|FAILED|SCRIPT ERROR|Parse Error" "$log" | head -40
 		die "单元测试没过(完整日志 $log),不发布"
 	fi

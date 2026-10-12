@@ -132,6 +132,9 @@ static func parse(text: String, legal: Dictionary) -> Dictionary:
 		return _bad("回答里没有 JSON")
 	var data: Variant = parse_json(text.substr(start, end - start + 1))
 	if not data is Dictionary:
+		# 模型偶尔写出差一点的 JSON(实测 gpt-4.1:"amount": 130", 多一个引号):逐个字段捞
+		data = loose_fields(text.substr(start, end - start + 1))
+	if data.is_empty():
 		return _bad("JSON 解析失败")
 	var action: Variant = data.get("action")
 	if not action is String:
@@ -142,8 +145,24 @@ static func parse(text: String, legal: Dictionary) -> Dictionary:
 	var quip: Variant = data.get("quip")
 	if quip is float and quip == floorf(quip):
 		quip = int(quip)
+	elif quip is String and quip.is_valid_int():
+		quip = quip.to_int()   # 写成字符串的编号也认
 	return {"ok": true, "action": choice["action"], "amount": choice["amount"],
 		"quip": quip if Quips.is_valid(quip) else -1}
+
+
+static func loose_fields(text: String) -> Dictionary:
+	# 从坏掉的 JSON 里按字段名捞 action(字母)、amount 与 quip(数字,带不带引号都行);捞不到 action 返回 {}
+	var out := {}
+	var action := RegEx.create_from_string('"action"\\s*:\\s*"([A-Za-z_-]+)"').search(text)
+	if action == null:
+		return out
+	out["action"] = action.get_string(1)
+	for key in ["amount", "quip"]:
+		var found := RegEx.create_from_string('"%s"\\s*:\\s*"?(\\d+)' % key).search(text)
+		if found != null:
+			out[key] = found.get_string(1).to_int()
+	return out
 
 
 static func parse_json(text: String) -> Variant:

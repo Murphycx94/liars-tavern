@@ -58,7 +58,7 @@ func _init(p_screen: Node, p_app: Node, p_hud: PokerHud) -> void:
 
 static func action_text(ev: Dictionary) -> String:
 	# 日志里的一次行动:「弃牌」「过牌」「跟注 20」「下注 40」「加注到 80」「全下 960」,超时代打加「(超时)」,
-	# 机器人按 AI 的回答出手加「(ai)」(房主加的 "ai" 字段)
+	# AI 机器人加「(AI)」或「(内置策略)」
 	var amount: int = ev["amount"] if ev.get("amount") is int else 0
 	var bet: int = ev["bet"] if ev.get("bet") is int else 0
 	var text: String
@@ -80,8 +80,12 @@ static func action_text(ev: Dictionary) -> String:
 				text = str(ev.get("action", "?"))
 	if ev.get("timeout") is bool and ev["timeout"]:
 		text += "(超时)"
-	elif ev.get("ai") is bool and ev["ai"]:
-		text += "(ai)"
+	# 接了 AI 的机器人:这一步是 AI 出的,还是 AI 没接上、内置策略代打的
+	match ev.get("by"):
+		"ai":
+			text += "(AI)"
+		"fallback":
+			text += "(内置策略)"
 	return text
 
 

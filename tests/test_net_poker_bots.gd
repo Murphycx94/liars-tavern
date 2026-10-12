@@ -29,7 +29,7 @@ class FakeChat:
 var net: StubNet
 var chat: FakeChat
 var _acted: Array = []   # 房主收到的 action 事件的出手者
-var _ai_marks: Array = []   # 这些 action 事件里的 "ai" 标记(没有记 false)
+var _by: Array = []      # 同上,事件里标的来源(没标为 "")
 
 
 func before_each():
@@ -46,12 +46,12 @@ func before_each():
 	net.bots._ai = chat
 	net.bots.add_child(chat)
 	_acted = []
-	_ai_marks = []
+	_by = []
 	net.game_events.connect(func(events: Array) -> void:
 		for ev in events:
 			if ev["type"] == "action":
 				_acted.append(ev["pid"])
-				_ai_marks.append(ev.get("ai", false)))
+				_by.append(ev.get("by", "")))
 
 
 func after_each():
@@ -194,7 +194,7 @@ func _bot_turn() -> int:
 		net._handle_poker_rpc(HOST, R.CALL, 0)
 	net._anim_left = 0.0
 	_acted = []
-	_ai_marks = []
+	_by = []
 	return _current()
 
 
@@ -212,7 +212,7 @@ func test_ai_answer_drives_the_bot():
 	net.quip_shown.connect(func(pid: int, index: int) -> void: heard.append([pid, index]))
 	net.bots._process(PokerBots.THINK_MAX)
 	assert_eq(_acted, [bot], "按 AI 的回答出手了")
-	assert_eq(_ai_marks, [true], "带 ai 标记(记录里标「(ai)」)")
+	assert_eq(_by, [PokerBots.SOURCE_AI], "事件标上 AI,各端日志写「(AI)」")
 	assert_eq(heard, [[bot, 1]], "AI 选的快捷对话也说了")
 
 
@@ -224,7 +224,7 @@ func test_ai_error_falls_back_to_the_brain():
 	net.bots._on_answered(101, false, "API Key 不对")
 	net.bots._process(PokerBots.THINK_MAX)
 	assert_eq(_acted, [bot], "内置策略接手")
-	assert_eq(_ai_marks, [false], "内置策略出的不带标记")
+	assert_eq(_by, [PokerBots.SOURCE_FALLBACK], "事件标上内置策略代打")
 	assert_signal_emitted(net.bots, "notice")
 
 
@@ -239,3 +239,32 @@ func test_ai_timeout_falls_back_and_late_answers_are_ignored():
 	net.bots._on_answered(101, true, '{"action": "allin"}')
 	net.bots._process(STEP)
 	assert_eq(_acted, [bot], "过期的回答不理")
+
+
+func test_without_ai_actions_carry_no_source():
+	var bot := _bot_turn()
+	net.bots._process(STEP)
+	net.bots._process(PokerBots.THINK_MAX)
+	assert_eq(_acted, [bot])
+	assert_eq(_by, [""], "没接 AI 不标")
+
+
+func test_ai_bots_are_known_from_the_roster():
+	net.add_bot()
+	var bot: int = net._lobby.bot_ids()[0]
+	assert_false(net.is_ai_bot(bot), "没接 AI")
+	_ai_on()
+	net.refresh_bot_meta()
+	assert_true(net.is_ai_bot(bot))
+	assert_false(net.is_ai_bot(HOST), "真人不是")
+	net.lobby_meta = net.lobby_meta.merged({"bot_ai": "yes"}, true)
+	assert_false(net.is_ai_bot(bot), "meta 类型不对当否")
+
+
+func test_ai_nameplate_drops_the_prefix_for_the_tag():
+	assert_eq(PokerNameplate.shown_name("机器人·阿福", true), "阿福")
+	assert_eq(PokerNameplate.shown_name("机器人·阿福", false), "机器人·阿福")
+	var plate: PokerNameplate = autofree(PokerNameplate.new("机器人·阿福", true))
+	assert_not_null(plate.find_child("AiTag", true, false))
+	var plain: PokerNameplate = autofree(PokerNameplate.new("老王"))
+	assert_null(plain.find_child("AiTag", true, false))
