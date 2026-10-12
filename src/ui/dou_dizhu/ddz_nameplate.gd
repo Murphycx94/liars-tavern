@@ -1,6 +1,6 @@
 class_name DdzNameplate
 extends PanelContainer
-# 斗地主对手头顶铭牌:第一行 名字 + 身份签(「地主」金底 / 「农民」青绿底,定地主之前没有)+「托管」小签;
+# 斗地主对手头顶铭牌:第一行 名字(AI 接管的机器人去掉「机器人·」前缀、名字旁蓝色「AI」小标,和德州铭牌一样)+ 身份签(「地主」金底 / 「农民」青绿底,定地主之前没有)+「托管」小签;
 # 第二行 累计分(正绿负红)· 手牌张数(小牌背图标)· 叫分阶段写他叫了几分;只剩 1–2 张时张数变红并闪(报警)。
 # 轮到他时黄铜高亮、放大一下再回弹,留一圈淡淡的暖光;离开的人整块变灰。
 
@@ -49,7 +49,7 @@ static func is_alarm(row: Dictionary) -> bool:
 	return n >= 1 and n <= 2 and str(row.get("role", "")) != ""
 
 
-func _init(display_name: String) -> void:
+func _init(display_name: String, ai := false) -> void:
 	_style = UiTheme.panel_box(UiTheme.PANEL_SOFT, Color(UiTheme.BRASS, 0.45), 1, 10)
 	_style.content_margin_left = 12
 	_style.content_margin_right = 12
@@ -64,8 +64,13 @@ func _init(display_name: String) -> void:
 	top.alignment = BoxContainer.ALIGNMENT_CENTER
 	top.add_theme_constant_override("separation", 6)
 	box.add_child(top)
-	_name = UiTheme.label(display_name, 18, UiTheme.PARCHMENT, UiTheme.display_font())
+	_name = UiTheme.label(PokerNameplate.shown_name(display_name, ai), 18, UiTheme.PARCHMENT, UiTheme.display_font())
 	top.add_child(_name)
+	if ai:
+		var tag := UiTheme.label(PokerNameplate.AI_TAG, 13, PokerNameplate.AI_COLOR, UiTheme.body_font())
+		tag.name = "AiTag"
+		tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		top.add_child(tag)
 	_role = UiTheme.label("", 13, Color(0.12, 0.08, 0.04), UiTheme.body_font())
 	_role_style = UiTheme.flat(LANDLORD_TINT, 7)
 	_role_style.content_margin_left = 6

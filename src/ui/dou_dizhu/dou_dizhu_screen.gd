@@ -432,7 +432,7 @@ func _build_nameplates() -> void:
 		if pid == my_pid or not world.patrons.has(pid):
 			continue
 		var patron: Patron = world.patrons[pid]
-		app.labels.track(PLATE_KEY % pid, DdzNameplate.new(state.name_of(pid)),
+		app.labels.track(PLATE_KEY % pid, DdzNameplate.new(state.name_of(pid), Net.is_ai_bot(pid)),
 			func(): return patron.nameplate_anchor() if is_instance_valid(patron) else Vector3.ZERO)
 	_update_nameplates()
 

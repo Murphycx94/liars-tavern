@@ -133,6 +133,19 @@ func test_ai_config_reaches_both_drivers_and_the_lobby_meta():
 	assert_true(net.lobby_meta["bot_ai"])
 
 
+func test_ai_bots_get_the_ai_tag_on_their_nameplate():
+	net.add_bot()
+	var bot: int = net._lobby.bot_ids()[0]
+	assert_false(net.is_ai_bot(bot), "没接 AI")
+	_ai_on()
+	assert_true(net.is_ai_bot(bot))
+	var plate: DdzNameplate = autofree(DdzNameplate.new(net._lobby.names()[bot], net.is_ai_bot(bot)))
+	assert_not_null(plate.find_child("AiTag", true, false), "铭牌标「AI」")
+	assert_false(plate._name.text.begins_with(BotDriver.NAME_PREFIX), "「机器人·」前缀让位给 AI 小标")
+	var plain: DdzNameplate = autofree(DdzNameplate.new("老王"))
+	assert_null(plain.find_child("AiTag", true, false), "真人没有")
+
+
 # —— 对局 ——
 
 func test_host_and_two_bots_play_many_hands():
