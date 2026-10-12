@@ -56,6 +56,9 @@ var _species_wanted := Species.UNASSIGNED   # 仅客户端:等待房主确认的
 var banter: Banter = null          # 丢番茄与快捷语(子节点 /root/Net/Banter,RPC 在它身上,本类的 RPC 表不变)
 var bots: PokerBots = null         # 仅房主用:德州机器人(子节点 /root/Net/PokerBots,没有 RPC);AI 设置以它的 config 为准
 var ddz_bots: DdzBots = null       # 仅房主用:斗地主机器人(子节点 /root/Net/DdzBots,没有 RPC)
+var poker_pilot: PokerPilot = null # 各端:本机玩家的德州托管(用本机 AI 设置)
+var ddz_pilot: DdzPilot = null     # 各端:本机玩家的斗地主托管(用本机 AI 设置)
+const TRUSTEE_SOURCES := [BotDriver.SOURCE_TRUSTEE, BotDriver.SOURCE_TRUSTEE_AI]   # 客户端意图里能带的来源(托管)
 const BOT_SOURCE_EVENTS := ["action", "bid", "played", "passed"]   # 机器人出手来源("by")标在哪些事件上(德州 / 斗地主)
 var _next_bot_id := -1             # 仅房主:下一个机器人的 pid(-1、-2…,只减不增,请走后不复用)
 
@@ -78,6 +81,12 @@ func _ready() -> void:
 	ddz_bots = DdzBots.new()
 	ddz_bots.name = "DdzBots"
 	add_child(ddz_bots)
+	poker_pilot = PokerPilot.new()
+	poker_pilot.name = "PokerPilot"
+	add_child(poker_pilot)
+	ddz_pilot = DdzPilot.new()
+	ddz_pilot.name = "DdzPilot"
+	add_child(ddz_pilot)
 
 
 func _process(delta: float) -> void:
@@ -558,10 +567,10 @@ func is_bot(pid: int) -> bool:
 	return is_host and _lobby != null and _lobby.is_bot(pid)
 
 
-func set_bot_ai_config(values: Dictionary) -> void:
-	# AI 设置(两种玩法的机器人共用一份):保存设置面板或命令行指定时调用,名单 meta 跟着变
-	bots.set_config(values)
-	ddz_bots.set_config(values)
+func set_ai_config(values: Dictionary) -> void:
+	# 本机 AI 设置(房主的机器人与本机玩家的托管共用一份):保存设置面板或命令行指定时调用,名单 meta 跟着变
+	for driver: BotDriver in [bots, ddz_bots, poker_pilot, ddz_pilot]:
+		driver.set_config(values)
 	refresh_bot_meta()
 
 
@@ -609,12 +618,16 @@ func bot_intent(pid: int, intent: Dictionary, source := "") -> bool:
 	var result: Dictionary = _session.handle_intent(pid, intent)
 	if not result["ok"]:
 		return false
-	var events: Array = result["events"]
-	if source != "":
-		events = events.map(func(ev: Dictionary) -> Dictionary:
-			return ev.merged({"by": source}, true) if ev.get("pid") == pid and BOT_SOURCE_EVENTS.has(ev.get("type")) else ev)
-	_after_action(events, result["turn_action"])
+	_after_action(_tagged(result["events"], pid, source), result["turn_action"])
 	return true
+
+
+static func _tagged(events: Array, pid: int, source: String) -> Array:
+	# 出手来源 by 标在这个人自己的出手事件上;没有来源原样返回
+	if source == "":
+		return events
+	return events.map(func(ev: Dictionary) -> Dictionary:
+		return ev.merged({"by": source}, true) if ev.get("pid") == pid and BOT_SOURCE_EVENTS.has(ev.get("type")) else ev)
 
 
 func bot_quip(pid: int, index: int) -> void:
@@ -858,8 +871,17 @@ func rpc_session_intent(intent) -> void:
 
 
 func _handle_session_rpc(pid: int, intent: Variant) -> void:
+	# 意图里可以多带一个 by(托管代打的来源,只认 TRUSTEE_SOURCES):先拿掉再交给会话校验,通过后标在出手事件上
 	if not in_game or _session == null:
 		return
+	var source := ""
+	if intent is Dictionary and intent.has("by"):
+		source = intent["by"] if TRUSTEE_SOURCES.has(intent["by"]) else ""
+		if source == "":
+			_reject(pid, "invalid_intent")
+			return
+		intent = intent.duplicate()
+		intent.erase("by")
 	var error := ""
 	if not _lobby.has(pid):
 		error = "not_seated"
@@ -868,17 +890,17 @@ func _handle_session_rpc(pid: int, intent: Variant) -> void:
 	if error != "":
 		_reject(pid, error)
 		return
-	_handle_intent(pid, intent)
+	_handle_intent(pid, intent, source)
 
 
-func _handle_intent(pid: int, intent: Dictionary) -> void:
+func _handle_intent(pid: int, intent: Dictionary, source := "") -> void:
 	if _session == null or not in_game:
 		return
 	var result: Dictionary = _session.handle_intent(pid, intent)
 	if not result["ok"]:
 		_reject(pid, result["error"])
 		return
-	_after_action(result["events"], result["turn_action"])
+	_after_action(_tagged(result["events"], pid, source), result["turn_action"])
 
 
 func _reject(pid: int, code: String) -> void:

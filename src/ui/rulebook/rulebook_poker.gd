@@ -211,6 +211,7 @@ static func _controls() -> Dictionary:
 				{"action": "选金额预设", "mouse": "预设按钮", "keys": ["1–5"]},
 				{"action": "全下", "mouse": "「全下」按钮", "keys": []},
 				{"action": "输光时选观战", "mouse": "「观战」按钮", "keys": ["Esc"]},
+				{"action": "托管(自动替你出手)", "mouse": "左下「托管」按钮", "keys": []},
 				{"action": "散局(仅房主)", "mouse": "「散局」按钮", "keys": []},
 				{"action": "转头张望", "mouse": "移动鼠标", "keys": []},
 				{"action": "探头 / 缩回(脖子自动伸缩)", "mouse": "", "keys": ["W", "A", "S", "D"]},

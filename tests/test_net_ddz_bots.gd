@@ -39,7 +39,7 @@ func before_each():
 	net.game_mode = GameMode.DOU_DIZHU
 	net._lobby = LobbyModel.new()
 	net._lobby.add_host("房主")
-	net.set_bot_ai_config(AiSettings.defaults())
+	net.set_ai_config(AiSettings.defaults())
 	net.ddz_bots.set_process(false)   # 测试里手动推进,不让引擎的帧插进来
 	net.bots.set_process(false)
 	chat = FakeChat.new()
@@ -60,7 +60,7 @@ func after_each():
 
 
 func _ai_on() -> void:
-	net.set_bot_ai_config({AiSettings.KEY_URL: "https://api.example.com/v1", AiSettings.KEY_MODEL: "m",
+	net.set_ai_config({AiSettings.KEY_URL: "https://api.example.com/v1", AiSettings.KEY_MODEL: "m",
 		AiSettings.KEY_API_KEY: "k", AiSettings.KEY_ENABLED: true})
 
 

@@ -533,18 +533,13 @@ func _bubble(pid: Variant, text: String, color := UiTheme.INK) -> void:
 
 
 static func _auto_tag(ev: Dictionary) -> String:
-	# 记录行尾的标记:托管代打、超时代打;接了 AI 的机器人(房主加的 "by" 字段)这一步是 AI 出的「(AI)」,
-	# 还是 AI 没接上、内置策略代打的「(内置策略)」(和德州的记录一样)
+	# 记录行尾的标记:房主按托管打法代打、超时代打;其余按房主标的来源 "by"(和德州的记录一样):
+	# 机器人「(AI)」「(内置策略)」,玩家托管由本机代打「(托管·AI)」「(托管)」
 	if ev.get("auto") is bool and ev["auto"]:
 		return "(托管)"
 	if ev.get("timed_out") is bool and ev["timed_out"]:
 		return "(超时)"
-	match ev.get("by"):
-		BotDriver.SOURCE_AI:
-			return "(AI)"
-		BotDriver.SOURCE_FALLBACK:
-			return "(内置策略)"
-	return ""
+	return PokerDirector.source_tag(ev.get("by"))
 
 
 func _ensure_faces() -> void:

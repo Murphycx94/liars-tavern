@@ -154,7 +154,7 @@ func test_turn_timer_after_by_stage_and_trustee():
 	_to_landlord(first)
 	assert_almost_eq(session.turn_timer_after(turn, 1.0, 5.0), 1.0 + Protocol.TURN_TIMEOUT, 0.001, "出牌 30 秒")
 	session.handle_intent(first, {"kind": "trustee", "on": true})
-	assert_almost_eq(session.turn_timer_after([], 3.0, 20.0), 3.0 + DouDizhuPacing.TRUSTEE_DELAY, 0.001, "托管:很快代打")
+	assert_almost_eq(session.turn_timer_after([], 3.0, 20.0), 20.0, 0.001, "托管:回合照常(本机代打),保留剩余")
 	var off: Array = session.handle_intent(first, {"kind": "trustee", "on": false})["events"]
 	assert_almost_eq(session.turn_timer_after(off, 0.0, 0.5), Protocol.TURN_TIMEOUT, 0.001, "取消托管:给满一个回合")
 	var other_off := [{"type": "trustee", "pid": _s().next_pid(first), "on": false, "auto": false}]

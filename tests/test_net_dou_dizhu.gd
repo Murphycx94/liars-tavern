@@ -190,13 +190,14 @@ func test_bids_broadcast_and_the_timer_follows_the_stage():
 	assert_gt(priv["hints"].size(), 0)
 
 
-func test_trustee_shortens_the_clock_and_gets_auto_played():
+func test_trustee_keeps_the_clock_for_the_pilot_and_host_plays_at_the_deadline():
 	_start()
 	_rig({HOST: D.cards("3 4 5"), 10: D.cards("6 7"), 11: D.cards("8 9")}, HOST, 10)
 	net._anim_left = 0.0   # 开局演出已播完
+	var before := net._turn_timer.time_left
 	_intent(10, {"kind": "trustee", "on": true})
 	assert_eq(D.types(_events), ["trustee"])
-	assert_almost_eq(net._turn_timer.time_left, DouDizhuPacing.TRUSTEE_DELAY, EPS, "轮到托管的人:很快代打")
+	assert_almost_eq(net._turn_timer.time_left, before, EPS, "托管由他自己的电脑代打:剩余时间照旧,不缩短")
 	net._on_turn_timeout()
 	var played := D.find(_events, "played")
 	assert_eq([played["pid"], played["auto"]], [10, true])

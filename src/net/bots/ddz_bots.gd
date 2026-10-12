@@ -45,7 +45,7 @@ func _handles(mode: String) -> bool:
 
 
 func _situation(pid: int) -> Dictionary:
-	return DdzBotBrain.situation(_net.last_public, _net.bot_private_view(pid), pid)
+	return DdzBotBrain.situation(_net.last_public, _private(pid), pid)
 
 
 func _can_ask(sit: Dictionary) -> bool:
@@ -71,15 +71,15 @@ func _apply(pid: int, choice: Dictionary, from: String) -> bool:
 	# 出牌意图要手牌下标:按此刻的私有视图换算(手牌升序)
 	match choice.get("kind", ""):
 		"bid":
-			return _net.bot_intent(pid, {"kind": "bid", "score": choice["score"]}, from)
+			return _send(pid, {"kind": "bid", "score": choice["score"]}, from)
 		"pass":
-			return _net.bot_intent(pid, {"kind": "pass"}, from)
+			return _send(pid, {"kind": "pass"}, from)
 		"play":
-			var hand: Array = _net.bot_private_view(pid).get("cards", [])
+			var hand: Array = _private(pid).get("cards", [])
 			var indices := DdzState.indices_of(hand, choice["cards"])
 			if indices.is_empty() or indices.has(-1):
 				return false
-			return _net.bot_intent(pid, {"kind": "play", "cards": indices}, from)
+			return _send(pid, {"kind": "play", "cards": indices}, from)
 	return false
 
 

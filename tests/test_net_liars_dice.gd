@@ -153,13 +153,14 @@ func test_bomb_cat_intents_are_refused_in_a_dice_room_and_vice_versa():
 
 
 func test_session_intents_are_refused_in_liars_and_poker_rooms():
+	# 骗子酒馆不收字典意图;德州收(托管经它出手),但别的玩法的动作一律当非法动作
 	for mode in [GameMode.LIARS, GameMode.HOLDEM]:
 		net._session = null
 		net.in_game = false
 		_start(mode)
 		var before: Dictionary = net.last_public.duplicate(true)
 		_intent(10, {"kind": "challenge"})
-		assert_eq(_rejections_to(10), ["invalid_intent"], mode)
+		assert_eq(_rejections_to(10), ["invalid_action" if GameMode.is_poker(mode) else "invalid_intent"], mode)
 		assert_eq(net.last_public, before, "%s 的局面不动" % mode)
 
 

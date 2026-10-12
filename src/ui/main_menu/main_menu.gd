@@ -1,5 +1,5 @@
 extends Control
-# 主菜单:形象与昵称 / 开设房间(选玩法)/ 局域网房间列表(自动发现)/ IP 直连。
+# 主菜单:形象与昵称(名号旁有每人自己的「AI 设置」)/ 开设房间(选玩法)/ 局域网房间列表(自动发现)/ IP 直连。
 # 左侧木牌面板,右侧是环绕镜头下的酒馆。面板在可滚动的侧栏里:1280x720 逻辑分辨率下整块放得下,
 # 窗口再矮也只是滚动,底部的 IP 直连、状态行与页脚不会被裁掉。
 # 名号旁的头像点开挑选面板(弹出在侧栏右边,不加侧栏的高度);选中的形象坐在桌边 0 号椅上预览。
@@ -146,6 +146,13 @@ func _build_identity(box: VBoxContainer) -> void:
 	_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_name_edit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	identity.add_child(_name_edit)
+	# 每个人自己的 AI 设置(你开房加的机器人与你的托管都用它):放在名号旁,不加侧栏的宽与高
+	var ai := UiTheme.button("AI 设置")
+	ai.add_theme_font_size_override("font_size", 15)
+	ai.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	ai.tooltip_text = "填大模型接口:你的机器人与托管由 AI 来打(只存在这台电脑上)"
+	ai.pressed.connect(_open_ai_settings)
+	identity.add_child(ai)
 	box.add_child(_mode_section())
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
@@ -273,6 +280,24 @@ func _build_footer(box: VBoxContainer) -> void:
 	_mute_button.pressed.connect(_toggle_mute)
 	row.add_child(_mute_button)
 	_update_mute_label()
+
+
+func _open_ai_settings() -> void:
+	Sfx.play("ui_click")
+	var path = app.get("settings_path")
+	var settings_path: String = path if path is String else Settings.PATH
+	var dialog := AiSettingsDialog.new(Net.bots.config)
+	dialog.saved.connect(func(values: Dictionary) -> void:
+		AiSettings.save_config(values, settings_path)
+		Net.set_ai_config(values)
+		app.toast(ai_mode_text(Net.bots.config), UiTheme.BRASS_BRIGHT))
+	add_child(dialog)
+
+
+static func ai_mode_text(config: Dictionary) -> String:
+	if AiSettings.is_active(config):
+		return "已启用 AI · %s:你的机器人与托管由它来打" % config[AiSettings.KEY_MODEL]
+	return "没有启用 AI:机器人与托管用内置策略"
 
 
 func _section(text: String) -> Control:

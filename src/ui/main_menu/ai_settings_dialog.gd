@@ -1,6 +1,7 @@
 class_name AiSettingsDialog
 extends ColorRect
-# 德州 / 斗地主等待厅(房主)的「AI 设置」:填接口地址、API Key、模型,打开「让 AI 接管机器人」后机器人就由 AI 来打。
+# 主菜单的「AI 设置」(每个玩家都能设,只存本机):填接口地址、API Key、模型,打开「启用 AI」后,
+# 你开房加的机器人与你自己的托管(德州、斗地主)都由这个 AI 来打。
 # 可以先「测试连接」(真的发一句话过去,看模型回不回);保存时开关打开但没填好会提示、不保存。
 # 半透明遮罩吞掉鼠标与按键,背后等待厅的快捷键(Esc 离开)不会生效;Esc 关闭本面板。
 
@@ -12,9 +13,9 @@ const FIELD_FONT_SIZE := 17
 const TEST_SYSTEM := "你是连通性测试。"
 const TEST_USER := "只回复 OK 两个字母,不要别的。"
 const TEST_REPLY_MAX := 40
-const HELP := "填上大模型的接口,机器人就由 AI 来打牌(AI 只看得到机器人自己能看到的牌)。\n" \
+const HELP := "填上大模型的接口:你开房时加的机器人、你自己点「托管」时,都由这个 AI 来打(它只看得到你能看到的牌)。\n" \
 	+ "支持 OpenAI 兼容接口(DeepSeek、通义千问、Kimi、OpenRouter、本机 Ollama 等)和 Anthropic。\n" \
-	+ "接口地址与 Key 只保存在这台电脑上;AI 出错或太慢时机器人改用内置策略。"
+	+ "接口地址与 Key 只保存在这台电脑上,不会发给别人;别人的托管用他们自己的设置。AI 出错或太慢时改用内置策略。"
 
 var _values := {}
 var _url: LineEdit
@@ -49,7 +50,7 @@ func _ready() -> void:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 12)
 	panel.add_child(box)
-	box.add_child(UiTheme.label("AI 接管机器人", 26, UiTheme.BRASS_BRIGHT, UiTheme.display_font()))
+	box.add_child(UiTheme.label("AI 设置", 26, UiTheme.BRASS_BRIGHT, UiTheme.display_font()))
 	var help := UiTheme.label(HELP, 14, UiTheme.MUTED)
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(help)
@@ -58,7 +59,7 @@ func _ready() -> void:
 	_key.secret = true
 	_model = _field(box, "模型", "deepseek-chat", _values[AiSettings.KEY_MODEL])
 	_enabled = CheckButton.new()
-	_enabled.text = "让 AI 接管机器人"
+	_enabled.text = "启用 AI(我的机器人与托管)"
 	_enabled.button_pressed = _values[AiSettings.KEY_ENABLED]
 	_enabled.add_theme_font_size_override("font_size", FIELD_FONT_SIZE)
 	box.add_child(_enabled)

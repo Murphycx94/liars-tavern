@@ -25,7 +25,6 @@ const SESSION_OVER := 3.0            # 结算面板之前的谢幕
 
 # 房主排期用,不对应事件:
 const HAND_GAP := 5.0                # 一手结束演完后再停这么久(看清结算)才自动开下一手
-const TRUSTEE_DELAY := 1.0           # 托管中的人轮到时,演完再等这么久由房主代打
 
 # 这些事件会让客户端在演出结束时把回合交给某人(重新起算回合时间)
 const TURN_EVENTS := ["turn"]

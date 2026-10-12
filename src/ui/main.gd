@@ -63,7 +63,7 @@ func _ready() -> void:
 	Net.returned_to_lobby.connect(_show_lobby)
 	Net.left_lobby.connect(_back_to_menu)
 	Net.game_started.connect(_show_table)
-	for driver in [Net.bots, Net.ddz_bots]:   # 机器人的 AI 出错(房主才有)
+	for driver in [Net.bots, Net.ddz_bots, Net.poker_pilot, Net.ddz_pilot]:   # 机器人(房主)与本机托管的 AI 出错
 		driver.notice.connect(func(text: String): toast(text, UiTheme.MUTED))
 	RoomTextures.build(self)   # 墙地噪声与墙饰图集(不 await:与牌面共用等待帧,烘好后材质自动换图)
 	await CardFaces.build(self)

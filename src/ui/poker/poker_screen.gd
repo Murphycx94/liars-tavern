@@ -142,6 +142,9 @@ func _connect_hud() -> void:
 	hud.history_pressed.connect(toggle_history)
 	hud.action_chosen.connect(submit)
 	hud.fold_confirm_requested.connect(_confirm_fold)
+	hud.trustee_pressed.connect(toggle_trustee)
+	Net.poker_pilot.changed.connect(_on_trustee_changed)   # 连的是本屏幕的方法:屏幕释放后连接自动断开
+	hud.set_trustee(Net.poker_pilot.enabled, Net.poker_pilot.ai_active())
 
 
 func _make_quips() -> QuipController:
@@ -346,6 +349,20 @@ func refresh_actions() -> void:
 
 
 # —— 导演回调 ——
+
+# —— 托管(本机代打,见 PokerPilot) ——
+
+func toggle_trustee() -> void:
+	Sfx.play("ui_click")
+	Net.poker_pilot.set_enabled(not Net.poker_pilot.enabled)
+
+
+func _on_trustee_changed(on: bool) -> void:
+	var ai: bool = Net.poker_pilot.ai_active()
+	hud.set_trustee(on, ai)
+	app.toast(("已托管:" + ("你的 AI 替你出手" if ai else "轮到你时自动出手")) if on else "已取消托管",
+		PokerHud.TRUSTEE_COLOR if on else UiTheme.PARCHMENT)
+
 
 func name_of(pid: Variant) -> String:
 	return state.name_of(pid)

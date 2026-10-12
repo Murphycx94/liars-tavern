@@ -44,7 +44,7 @@ func _handles(mode: String) -> bool:
 
 
 func _situation(pid: int) -> Dictionary:
-	return PokerBotBrain.situation(_net.last_public, _net.bot_private_view(pid), pid)
+	return PokerBotBrain.situation(_net.last_public, _private(pid), pid)
 
 
 func _can_ask(sit: Dictionary) -> bool:
@@ -70,7 +70,7 @@ func _brain(pid: int, sit: Dictionary) -> Dictionary:
 
 
 func _apply(pid: int, choice: Dictionary, from: String) -> bool:
-	return _net.bot_intent(pid, {"kind": choice["action"], "amount": choice["amount"]}, from)
+	return _send(pid, {"kind": choice["action"], "amount": choice["amount"]}, from)
 
 
 func _fallback(sit: Dictionary) -> Dictionary:

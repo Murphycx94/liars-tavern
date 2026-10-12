@@ -458,7 +458,7 @@ func _update_info() -> void:
 	hud.set_ending(state.ending or _end_requested)
 	var row := state.plate_row(my_pid)
 	row["count"] = state.shown_hand.size() if not state.shown_hand.is_empty() else row["count"]
-	hud.set_me(name_of(my_pid), row, my_trustee(), can_toggle_trustee())
+	hud.set_me(name_of(my_pid), row, my_trustee(), can_toggle_trustee(), Net.ddz_pilot.ai_active())
 
 
 func refresh_hud() -> void:

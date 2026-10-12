@@ -174,7 +174,7 @@ static func _session() -> Dictionary:
 				"有人离开,牌局立即结算,正在打的这一手作废不计分。",
 			]},
 			{"type": "pair", "items": [
-				{"title": "托管", "tone": "brass", "body": "点左下「托管」,轮到你时由系统很快替你出:叫分不叫,能跟就出最小的能压过的牌,队友的牌不压。"},
+				{"title": "托管", "tone": "brass", "body": "点左下「托管」,轮到你时由你的电脑替你出:在主菜单「AI 设置」里启用了 AI 就由你自己的 AI 来打,否则用机器人的内置策略(会拆牌、会配合队友)。"},
 				{"title": "自动托管", "tone": "lie", "body": "连续 %d 次超时会自动进入托管;点「取消托管」接回来。托管中也可以自己出牌。"
 					% DdzState.TRUSTEE_AFTER_TIMEOUTS},
 			]},

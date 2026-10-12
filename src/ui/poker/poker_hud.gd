@@ -3,7 +3,8 @@ extends Control
 # 德州牌桌 HUD(规格 §6.1,按 1280×720 的布局预算):
 # 左上 ≤ 380×108(玩法 · 盲注 · 第 N 手;底池合计与边池摘要;5 张公共牌的 2D 牌条)、右上「规则」与房主的「散局」、
 # 底部中间 ≤ 600×170(轮到自己时的下注控件 / 输光、观战、等待、离座的提示)、右侧摊牌面板(亮牌到下一手开始)、
-# 左下 ≤ 300 宽(自己的名字、筹码、盈亏、领取次数;两张手牌的 2D 大图 + 当前最大牌型)、右下事件日志、画面中部大字宣告。
+# 左下 ≤ 300 宽(自己的名字、筹码、盈亏、领取次数;两张手牌的 2D 大图 + 当前最大牌型;「托管」按钮与托管中的提示)、
+# 右下事件日志、画面中部大字宣告。
 # 只发信号,不直接调用 Net / Sfx;所有按钮 FOCUS_NONE(焦点会吃掉空格/回车)。界面文字里不出现花色符号。
 
 
@@ -17,8 +18,10 @@ signal next_pressed
 signal history_pressed
 signal action_chosen(action: String, amount: int)
 signal fold_confirm_requested
+signal trustee_pressed
 
 const MARGIN := Vector2(24, 20)
+const TRUSTEE_COLOR := Color(0.75, 0.82, 1.0)
 const TOP_LEFT_MAX := Vector2(380, 108)
 const TOP_LEFT_BOTTOM := 128.0
 const BOTTOM_MAX := BetControls.MAX_SIZE
@@ -63,6 +66,8 @@ var controls: BetControls
 var showdown: ShowdownPanel
 var prompts: PokerPrompts
 var my_panel: PanelContainer
+var trustee_button: Button
+var _trustee_label: Label
 var my_strip: CardStrip
 var log_box: VBoxContainer
 
@@ -219,6 +224,19 @@ func _build_my_panel() -> void:
 	box.add_child(my_strip)
 	_best_label = UiTheme.label("", 15, UiTheme.BRASS_BRIGHT)
 	box.add_child(_best_label)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	box.add_child(row)
+	trustee_button = UiTheme.button("托管")
+	trustee_button.add_theme_font_size_override("font_size", 15)
+	trustee_button.focus_mode = Control.FOCUS_NONE
+	trustee_button.tooltip_text = "托管:轮到你时自动替你出手(开了 AI 就由你自己的 AI 来打);再点一下取消"
+	trustee_button.pressed.connect(func(): trustee_pressed.emit())
+	row.add_child(trustee_button)
+	_trustee_label = UiTheme.label("", 13, TRUSTEE_COLOR)
+	_trustee_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_trustee_label.visible = false
+	row.add_child(_trustee_label)
 
 
 func _build_log() -> void:
@@ -355,6 +373,16 @@ func set_countdown(remaining: float, total: float, show: bool) -> void:
 func set_my_status(display_name: String, player: Dictionary) -> void:
 	_my_name.text = display_name + "(你)"
 	_my_status.text = my_status_text(player)
+
+
+func set_trustee(on: bool, ai: bool) -> void:
+	trustee_button.text = "取消托管" if on else "托管"
+	_trustee_label.visible = on
+	_trustee_label.text = trustee_text(ai)
+
+
+static func trustee_text(ai: bool) -> String:
+	return "托管中 · 你的 AI 在打" if ai else "托管中 · 自动出手"
 
 
 func set_my_hole(cards: Variant) -> void:

@@ -65,6 +65,7 @@ var _play_box: HBoxContainer
 var _bid_box: HBoxContainer
 var _action_row: HBoxContainer
 var _trustee_panel: PanelContainer
+var _trustee_label: Label
 var _hint: Label
 var _log_box: VBoxContainer
 var _announce_box: VBoxContainer
@@ -261,7 +262,8 @@ func _build_bottom() -> void:
 	_trustee_panel.add_theme_stylebox_override("panel", t_style)
 	_trustee_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_trustee_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_trustee_panel.add_child(UiTheme.label("托管中 · 轮到你时自动出牌(点左下「取消托管」接回来)", 15, Color(0.85, 0.88, 1.0)))
+	_trustee_label = UiTheme.label(trustee_text(false), 15, Color(0.85, 0.88, 1.0))
+	_trustee_panel.add_child(_trustee_label)
 	_trustee_panel.visible = false
 	holder.add_child(_trustee_panel)
 	_action_row = HBoxContainer.new()
@@ -365,7 +367,7 @@ func _build_my_panel() -> void:
 	trustee_button = UiTheme.button("托管")
 	trustee_button.add_theme_font_size_override("font_size", 16)
 	trustee_button.focus_mode = Control.FOCUS_NONE
-	trustee_button.tooltip_text = "托管:轮到你时系统自动替你出牌;再点一下取消"
+	trustee_button.tooltip_text = "托管:轮到你时自动替你出牌(开了 AI 就由你自己的 AI 来打);再点一下取消"
 	trustee_button.pressed.connect(func(): trustee_pressed.emit())
 	box.add_child(trustee_button)
 
@@ -514,7 +516,11 @@ func set_host(host: bool) -> void:
 
 # —— 自己 ——
 
-func set_me(display_name: String, row: Dictionary, trustee: bool, can_toggle: bool) -> void:
+static func trustee_text(ai: bool) -> String:
+	return ("托管中 · 你的 AI 在替你出牌" if ai else "托管中 · 轮到你时自动出牌") + "(点左下「取消托管」接回来)"
+
+
+func set_me(display_name: String, row: Dictionary, trustee: bool, can_toggle: bool, ai := false) -> void:
 	_my_name.text = display_name
 	var role := str(row.get("role", ""))
 	_my_role.visible = DdzNameplate.ROLE_TEXT.has(role)
@@ -524,6 +530,7 @@ func set_me(display_name: String, row: Dictionary, trustee: bool, can_toggle: bo
 	trustee_button.text = "取消托管" if trustee else "托管"
 	trustee_button.disabled = not can_toggle
 	_trustee_panel.visible = trustee and not _away
+	_trustee_label.text = trustee_text(ai)
 
 
 func my_info() -> String:

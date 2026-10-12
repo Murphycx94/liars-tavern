@@ -58,7 +58,7 @@ func _init(p_screen: Node, p_app: Node, p_hud: PokerHud) -> void:
 
 static func action_text(ev: Dictionary) -> String:
 	# 日志里的一次行动:「弃牌」「过牌」「跟注 20」「下注 40」「加注到 80」「全下 960」,超时代打加「(超时)」,
-	# AI 机器人加「(AI)」或「(内置策略)」
+	# AI 机器人加「(AI)」或「(内置策略)」,托管加「(托管·AI)」或「(托管)」
 	var amount: int = ev["amount"] if ev.get("amount") is int else 0
 	var bet: int = ev["bet"] if ev.get("bet") is int else 0
 	var text: String
@@ -80,13 +80,22 @@ static func action_text(ev: Dictionary) -> String:
 				text = str(ev.get("action", "?"))
 	if ev.get("timeout") is bool and ev["timeout"]:
 		text += "(超时)"
-	# 接了 AI 的机器人:这一步是 AI 出的,还是 AI 没接上、内置策略代打的
-	match ev.get("by"):
-		"ai":
-			text += "(AI)"
-		"fallback":
-			text += "(内置策略)"
-	return text
+	# 接了 AI 的机器人:这一步是 AI 出的,还是 AI 没接上、内置策略代打的;玩家托管:本机 AI 代打还是内置策略代打
+	return text + source_tag(ev.get("by"))
+
+
+static func source_tag(by: Variant) -> String:
+	# 出手来源(房主标在事件上的 by)→ 记录行尾的标记;不认识的不标(德州、斗地主共用)
+	match by:
+		BotDriver.SOURCE_AI:
+			return "(AI)"
+		BotDriver.SOURCE_FALLBACK:
+			return "(内置策略)"
+		BotDriver.SOURCE_TRUSTEE_AI:
+			return "(托管·AI)"
+		BotDriver.SOURCE_TRUSTEE:
+			return "(托管)"
+	return ""
 
 
 static func best_cards(ev: Dictionary) -> Array:

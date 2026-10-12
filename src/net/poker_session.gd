@@ -32,6 +32,16 @@ static func check_intent(action: Variant, amount: Variant) -> String:
 	return ""
 
 
+func validate_intent(intent: Variant) -> String:
+	# 字典意图 {"kind": 动作, "amount": 整数}(托管经 rpc_session_intent 发来;手动出牌仍走 rpc_poker_intent)
+	if not intent is Dictionary or intent.size() > 2 or not intent.has("kind"):
+		return "invalid_intent"
+	for key in intent:
+		if not ["kind", "amount"].has(key):
+			return "invalid_intent"
+	return check_intent(intent["kind"], intent.get("amount", 0))
+
+
 func handle_intent(pid: int, intent: Dictionary) -> Dictionary:
 	# 5 个下注动作走 act(消耗回合);rebuy / spectate / sit_in 各自的方法(不消耗回合)
 	var action: Variant = intent.get("kind")

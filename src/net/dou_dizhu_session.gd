@@ -9,7 +9,8 @@ extends GameSession
 #   {"kind": "pass"}                      不出
 #   {"kind": "trustee", "on": bool}       托管开 / 关(任何时候,不消耗回合)
 # 计时语义:叫分 BID_TIMEOUT、出牌 Protocol.TURN_TIMEOUT,都从本批演出播完算起(换人的批次给满);
-# 轮到托管中的人只等 DouDizhuPacing.TRUSTEE_DELAY 就由房主代打。到点调 on_turn_timeout(DdzState.timeout)。
+# 托管由玩家自己的电脑代打(DdzPilot:本机 AI 或内置策略),房主照常给完整回合;到点还没出手才由房主按托管打法代打。
+# 到点调 on_turn_timeout(DdzState.timeout)。
 
 
 const MAX_INTENT_KEYS := 2      # kind + 一个字段
@@ -139,8 +140,6 @@ func estimate(events: Array) -> float:
 func turn_timer_after(events: Array, pending: float, time_left: float) -> float:
 	# pending = 含本批在内客户端还要演多久;time_left = 计时器当前剩余(到点触发时为 0)
 	var pid: Variant = _state.current_pid
-	if pid != null and _state.trustee.get(pid, false):
-		return pending + DouDizhuPacing.TRUSTEE_DELAY
 	var full := turn_timeout()
 	if DouDizhuPacing.starts_turn(events) or time_left <= 0.0 or _trustee_off(events, pid):
 		return pending + full

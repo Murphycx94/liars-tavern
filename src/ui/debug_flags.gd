@@ -8,7 +8,9 @@ extends Node
 #   --mode=玩法id        配合 --autohost:liars / bomb_cat / liars_dice / dou_dizhu / holdem / short_deck(默认 liars;非法值退出码 1),默认房名跟着玩法
 #   --hands=N            德州 / 斗地主房主:演到第 N 手开始时散局(本手结束后结算);非法值退出码 1
 #   --add-bots=N         德州 / 斗地主房主:开房后在等待厅添加 N 个机器人(房主端托管,AI 设置照本机设置);配合 --autohost=N+1 自动开局
-#   --ai-dialog          配合 --shots:德州 / 斗地主房主进等待厅后打开「AI 设置」面板,拍 ai_dialog(检查面板排版)
+#   --ai-dialog          配合 --shots:主菜单出来后打开「AI 设置」面板,拍 ai_dialog(检查面板排版)
+#   --no-ai              本次运行不用 AI(设置文件里开了也不用,不改文件):机器人与托管都用内置策略
+#   --trustee            德州 / 斗地主:开局就点「托管」,由本机托管代打(本机 AI 或内置策略);打印 PILOT_DECIDED(别和 --bot 一起用)
 #   --ai-url=地址 --ai-model=模型 [--ai-key=Key]  本次运行让 AI 接管机器人(不写设置文件;冒烟测试接本机假接口)
 #   --port=端口          房主优先绑定的游戏端口(并行测试互不串房)
 #   --room=房名          房主的房间名
@@ -180,19 +182,25 @@ func _ready() -> void:
 		if opts.has("shots-every"):
 			_capture_every(maxf(0.2, float(opts["shots-every"])))
 	var player_name: String = opts.get("name", "测试%d" % (OS.get_process_id() % 1000))
+	if opts.has("no-ai"):
+		Net.set_ai_config(AiSettings.defaults())   # 本次运行不用 AI(不管设置文件里开没开)
+	if opts.has("ai-url"):
+		# 本机 AI 设置(房主的机器人与本机托管都用它);客人也能带,托管就用客人自己的
+		Net.set_ai_config({AiSettings.KEY_URL: opts["ai-url"], AiSettings.KEY_MODEL: opts.get("ai-model", ""),
+			AiSettings.KEY_API_KEY: opts.get("ai-key", ""), AiSettings.KEY_ENABLED: true})
+	if opts.has("ai-url") or opts.has("add-bots") or opts.has("trustee"):
+		for driver: BotDriver in [Net.bots, Net.ddz_bots, Net.poker_pilot, Net.ddz_pilot]:
+			var tag := "PILOT" if driver is PokerPilot or driver is DdzPilot else "BOT"
+			driver.notice.connect(func(text: String): print("[debug] %s_NOTICE %s" % [tag, text]))
+			driver.decided.connect(func(pid: int, action: String, amount: int, by_ai: bool):
+				print("[debug] %s_DECIDED pid=%d %s %d by=%s" % [tag, pid, action, amount, "ai" if by_ai else "brain"]))
+	if opts.has("ai-dialog"):
+		_open_ai_dialog()
 	if opts.has("autohost"):
 		var err := Net.host_game(player_name, room_option(opts, player_name, mode), int(opts.get("port", "0")), mode, _species())
 		print("[debug] host_game -> ", error_string(err))
 		if err != OK:
 			_fail("host_failed")
-		if opts.has("ai-url"):
-			Net.set_bot_ai_config({AiSettings.KEY_URL: opts["ai-url"], AiSettings.KEY_MODEL: opts.get("ai-model", ""),
-				AiSettings.KEY_API_KEY: opts.get("ai-key", ""), AiSettings.KEY_ENABLED: true})
-		if opts.has("ai-url") or opts.has("add-bots"):
-			for driver in [Net.bots, Net.ddz_bots]:
-				driver.notice.connect(func(text: String): print("[debug] BOT_NOTICE ", text))
-				driver.decided.connect(func(pid: int, action: String, amount: int, by_ai: bool):
-					print("[debug] BOT_DECIDED pid=%d %s %d by=%s" % [pid, action, amount, "ai" if by_ai else "brain"]))
 		for i in int(opts.get("add-bots", "0")):
 			Net.add_bot()
 	elif opts.has("autojoin"):
@@ -434,13 +442,7 @@ func _on_joined() -> void:
 	print("[debug] joined lobby as ", Net.my_pid())
 	if opts.has("shots"):
 		_capture_later("lobby", 3.0)
-	if opts.has("ai-dialog") and Net.is_host:
-		await get_tree().create_timer(3.5).timeout
-		var lobby: Node = app.current_screen()
-		if lobby != null and lobby.has_method("_open_ai_settings"):
-			lobby._open_ai_settings()
-			_capture_later("ai_dialog", 1.0)
-	if opts.has("bot") and not Net.is_host:
+	if (opts.has("bot") or opts.has("trustee")) and not Net.is_host:   # 托管的客人也要点准备
 		await get_tree().create_timer(0.8).timeout
 		var screen: Node = app.current_screen()
 		if screen != null and screen.has_method("_on_ready_toggled"):
@@ -493,8 +495,28 @@ func _on_events(events: Array) -> void:
 				_match_finished = true
 
 
+func _start_trustee() -> void:
+	# 德州:本机开关;斗地主:托管状态在房主那边,发开托管的意图
+	if GameMode.is_poker(Net.game_mode):
+		Net.poker_pilot.set_enabled(true)
+	elif GameMode.is_dou_dizhu(Net.game_mode):
+		Net.submit_session_intent({"kind": "trustee", "on": true})
+	print("[debug] TRUSTEE on")
+
+
+func _open_ai_dialog() -> void:
+	# 主菜单出来后打开「AI 设置」面板并截图(不建房也不加入时用)
+	await get_tree().create_timer(2.0).timeout
+	var menu: Node = app.current_screen()
+	if menu != null and menu.has_method("_open_ai_settings"):
+		menu._open_ai_settings()
+		_capture_later("ai_dialog", 1.0)
+
+
 func _on_game_started(seats: Array) -> void:
 	print(species_line(seats))
+	if opts.has("trustee"):
+		_start_trustee.call_deferred()
 	if opts.has("bot"):
 		_bot_banter(seats)
 	# 截图与退出按演出进度触发:事件批到达时前面的动画可能还要播好几秒
