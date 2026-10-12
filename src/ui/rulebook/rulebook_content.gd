@@ -1,15 +1,17 @@
 class_name RulebookContent
-# 说明书内容:分五本书(骗子酒馆 / 炸弹猫 / 吹牛骰子 / 斗地主 / 德州扑克),每本按章节组织成纯数据,由 Rulebook 渲染。
-# 本文件是骗子酒馆那本;德州那本在 RulebookPoker(长牌、短牌共用一本),炸弹猫那本在 RulebookBombCat,吹牛骰子那本在 RulebookLiarsDice,斗地主那本在 RulebookDouDizhu。
+# 说明书内容:分六本书(骗子酒馆 / 炸弹猫 / 吹牛骰子 / 斗地主 / 21 点 / 德州扑克),每本按章节组织成纯数据,由 Rulebook 渲染。
+# 本文件是骗子酒馆那本;德州那本在 RulebookPoker(长牌、短牌共用一本),炸弹猫那本在 RulebookBombCat,吹牛骰子那本在 RulebookLiarsDice,
+# 斗地主那本在 RulebookDouDizhu,21 点那本在 RulebookBlackjack。
 # 文案中的数字全部取自规则常量(牌堆、手牌、出牌张数、左轮、限时),规则改动时说明书自动跟随。
 # 块类型:lead 引言 / text 正文 / bullets 要点 / note 提示条 / cards 牌堆 / pair 二选一对照 /
 #        odds 左轮中弹概率 / keys 操作键位 / hands 德州牌型表 / bomb_cards 炸弹猫的牌(小牌面 + 名字 + 张数 + 说明) /
 #        dice 吹牛骰子的开盅示例(每行一个名字 + 一排 2D 骰子,等于 face 或 1 点的金边高亮) /
-#        ddz_combos 斗地主牌型表(牌型名 + 说明 + 示例小牌) / ddz_order 斗地主大小顺序(一排小牌)。pair 的 tone 取 brass / truth / lie。
+#        ddz_combos 斗地主牌型表(牌型名 + 说明 + 示例小牌) / ddz_order 斗地主大小顺序(一排小牌) /
+#        bj_hands 21 点的算点示例(一手小牌 + 点数 + 说明)。pair 与 bj_hands 的 tone 取 brass / truth / lie。
 
 
 const BLOCK_TYPES := ["lead", "text", "bullets", "note", "cards", "pair", "odds", "keys", "hands", "bomb_cards", "dice", "ddz_combos",
-	"ddz_order"]
+	"ddz_order", "bj_hands"]
 # 两本书的「操作」章都有这条:自选形象(子项目② §3.7)
 const SPECIES_NOTE := "主菜单名号旁的头像处挑选你的动物形象;同桌不撞脸,先选先得,被占时房主给你一个空着的;等待厅里点自己的头像还能换。"
 # 三本书的「操作」章都有这几条:丢番茄与快捷语(等待厅和牌局里都能用,出局、观战也行)、九宫格快捷对话(牌局里)
@@ -27,9 +29,10 @@ const BOOK_POKER := "poker"
 const BOOK_BOMB_CAT := "bomb_cat"
 const BOOK_LIARS_DICE := "liars_dice"
 const BOOK_DOU_DIZHU := "dou_dizhu"
-const BOOKS := [BOOK_LIARS, BOOK_BOMB_CAT, BOOK_LIARS_DICE, BOOK_DOU_DIZHU, BOOK_POKER]   # 页签顺序(同主菜单的玩法顺序)
+const BOOK_BLACKJACK := "blackjack"
+const BOOKS := [BOOK_LIARS, BOOK_BOMB_CAT, BOOK_LIARS_DICE, BOOK_DOU_DIZHU, BOOK_BLACKJACK, BOOK_POKER]   # 页签顺序(同主菜单的玩法顺序)
 const BOOK_TITLES := {BOOK_LIARS: "骗子酒馆", BOOK_POKER: "德州扑克", BOOK_BOMB_CAT: "炸弹猫", BOOK_LIARS_DICE: "吹牛骰子",
-	BOOK_DOU_DIZHU: "斗地主"}
+	BOOK_DOU_DIZHU: "斗地主", BOOK_BLACKJACK: "21 点"}
 
 
 static func sections(book := BOOK_LIARS) -> Array[Dictionary]:
@@ -41,6 +44,8 @@ static func sections(book := BOOK_LIARS) -> Array[Dictionary]:
 		return RulebookDouDizhu.sections()
 	if book == BOOK_LIARS_DICE:
 		return RulebookLiarsDice.sections()
+	if book == BOOK_BLACKJACK:
+		return RulebookBlackjack.sections()
 	return [_goal(), _deck(), _turn(), _reveal(), _revolver(), _rounds(), _controls()]
 
 
@@ -63,6 +68,8 @@ static func book_for_mode(mode: String) -> String:
 		return BOOK_DOU_DIZHU
 	if GameMode.is_liars_dice(mode):
 		return BOOK_LIARS_DICE
+	if GameMode.is_blackjack(mode):
+		return BOOK_BLACKJACK
 	return BOOK_POKER if GameMode.is_poker(mode) else BOOK_LIARS
 
 

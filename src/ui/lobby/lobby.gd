@@ -272,8 +272,8 @@ func _apply_table_mode() -> void:
 	# 德州等待厅在后台开始生成德州牌面(规格 §3.2、§5.2),进牌桌时多半已经生成完
 	_table_mode = Net.game_mode
 	app.apply_table_mode(_table_mode)
-	if GameMode.is_poker(_table_mode) and is_inside_tree():
-		PokerFaces.build(self)
+	if (GameMode.is_poker(_table_mode) or GameMode.is_blackjack(_table_mode)) and is_inside_tree():
+		PokerFaces.build(self)   # 21 点用德州的牌面
 	if GameMode.is_bomb_cat(_table_mode) and is_inside_tree():
 		BombCatFaces.build(self)   # 炸弹猫牌面同理(一批画完,约两帧)
 	if GameMode.is_dou_dizhu(_table_mode) and is_inside_tree():

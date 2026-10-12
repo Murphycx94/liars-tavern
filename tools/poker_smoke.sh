@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# 德州无头联机冒烟(规格 §8):1 个房主 + 直连 bot + 局域网发现 bot 开局;房主开始第 1 手后再来一个发现 bot(验证对局中可加入)。
-# 房主打到第 HANDS 手后散局。用法:MODE=holdem|short_deck tools/poker_smoke.sh
-# 通过条件:4 个进程都以 0 退出、都打印 SESSION_OVER、迟到者至少被发到一手牌、房主 net_sum=0、
+# 德州 / 21 点无头联机冒烟(规格 §8):1 个房主 + 直连 bot + 局域网发现 bot 开局;房主开始第 1 手后再来一个发现 bot(验证对局中可加入)。
+# 房主打到第 HANDS 手(局)后散局。用法:MODE=holdem|short_deck|blackjack tools/poker_smoke.sh
+# 通过条件:4 个进程都以 0 退出、都打印 SESSION_OVER、迟到者至少被发到一手牌、德州房主 net_sum=0(21 点和庄家对赌,不检查)、
 #          每个日志都收到另外 3 人的视线与脖子(GAZE peers=3 necks=3)与快捷对话(QUIPS heard=3)、没有脚本错误。
 set -u
 
@@ -23,6 +23,11 @@ COMMON=(--headless --path "$ROOT" -- --bot --fast="$SPEED" --quit-after-match)
 # 每次运行用独立的游戏端口与房名:同机并行跑多份冒烟时,直连与发现都只会进自己的房间
 PORT="${PORT:-$((47830 + RANDOM % 150))}"
 ROOM="德州冒烟$$"
+START_MARK="HAND_STARTED hand=1"
+if [ "$MODE" = "blackjack" ]; then
+	ROOM="21点冒烟$$"
+	START_MARK="ROUND_STARTED round=1"
+fi
 
 run_capped "$GODOT" "${COMMON[@]}" --autohost=3 --mode="$MODE" --hands="$HANDS" --port="$PORT" --room="$ROOM" \
 	--name=房主 >"$LOG_DIR/host.log" 2>&1 &
@@ -35,7 +40,7 @@ DIRECT=$!
 
 # 等房主开始第 1 手再放迟到者进来(房主提前退出或超时就不等了)
 waited=0
-until grep -q "HAND_STARTED hand=1" "$LOG_DIR/host.log" 2>/dev/null; do
+until grep -q "$START_MARK" "$LOG_DIR/host.log" 2>/dev/null; do
 	if ! kill -0 "$HOST" 2>/dev/null || [ "$waited" -ge "$CAP_SECONDS" ]; then
 		break
 	fi
@@ -59,7 +64,7 @@ for pair in "host:$HOST" "discover:$DISCOVER" "direct:$DIRECT" "late:$LATE"; do
 	grep -q "SESSION_OVER" "$log" || problems="$problems no_session_over"
 	grep -q "GAZE peers=$PEERS necks=$PEERS" "$log" || problems="$problems gaze"
 	grep -q "QUIPS heard=$PEERS" "$log" || problems="$problems quips"
-	if [ "$name" = "host" ] && ! grep -q "net_sum=0$" "$log"; then
+	if [ "$name" = "host" ] && [ "$MODE" != "blackjack" ] && ! grep -q "net_sum=0$" "$log"; then
 		problems="$problems net_sum"
 	fi
 	if [ "$name" = "late" ] && ! grep -q "SESSION_OVER hands_dealt=[1-9]" "$log"; then
@@ -85,5 +90,5 @@ if [ -z "${patron_lines[0]}" ] || [ "$(printf '%s\n' "${patron_lines[@]}" | sort
 else
 	echo "ok   patrons — ${patron_lines[0]}"
 fi
-[ "$status" -eq 0 ] && echo "德州联机冒烟($MODE)通过(日志:$LOG_DIR)"
+[ "$status" -eq 0 ] && echo "联机冒烟($MODE)通过(日志:$LOG_DIR)"
 exit "$status"

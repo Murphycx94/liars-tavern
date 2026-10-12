@@ -1,5 +1,5 @@
 extends GutTest
-# 主菜单开房的玩法切换(ModePicker):GameMode.MENU_ORDER 的六个格子排成三列两行,每格一个互斥的小号切换按钮、
+# 主菜单开房的玩法切换(ModePicker):GameMode.MENU_ORDER 的七个格子排成四列两行,每格一个互斥的小号切换按钮、
 # 预选传入的玩法;开房选不了的(menu_modes 之外,如斗地主登记之前)灰掉但照样占格子;
 # 切到别的玩法只回调一次(被挤掉的那个按钮不回调);每种状态的样式都换成小内边距,键盘焦点只画一圈框。
 
@@ -24,7 +24,7 @@ func _buttons() -> Array:
 func test_one_toggle_per_menu_slot_in_order_with_label_and_summary():
 	var modes := GameMode.MENU_ORDER
 	assert_eq(_picker.columns, ModePicker.COLUMNS)
-	assert_eq(ModePicker.COLUMNS, 3, "六种玩法三列两行")
+	assert_eq(ModePicker.COLUMNS, 4, "七种玩法四列两行")
 	assert_eq(_buttons().size(), modes.size())
 	for i in modes.size():
 		var button: Button = _buttons()[i]
@@ -39,10 +39,10 @@ func test_one_toggle_per_menu_slot_in_order_with_label_and_summary():
 		assert_eq(button.size_flags_horizontal, Control.SIZE_EXPAND_FILL, "同一列等宽铺满")
 
 
-func test_layout_is_two_rows_of_three():
+func test_layout_is_two_rows_of_four():
 	var labels := _buttons().map(func(b: Button) -> String: return b.text)
-	assert_eq(labels.slice(0, 3), ["骗子酒馆", "炸弹猫", "吹牛骰子"])
-	assert_eq(labels.slice(3, 6), ["斗地主", "德州·长牌", "德州·短牌"])
+	assert_eq(labels.slice(0, 4), ["骗子酒馆", "炸弹猫", "吹牛骰子", "斗地主"])
+	assert_eq(labels.slice(4, 7), ["21 点", "德州·长牌", "德州·短牌"])
 
 
 func test_unregistered_modes_are_greyed_out_and_cannot_be_preselected():

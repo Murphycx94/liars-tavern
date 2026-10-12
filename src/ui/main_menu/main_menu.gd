@@ -169,7 +169,7 @@ func _build_identity(box: VBoxContainer) -> void:
 
 
 func _mode_section() -> Control:
-	# 「开一桌」小节标题右边放六种玩法的三列两行格子(铺满标题右边的宽度,不画分隔线):不另占一整行,
+	# 「开一桌」小节标题右边放七种玩法的四列两行格子(铺满标题右边的宽度,不画分隔线):不另占一整行,
 	# 1280×720 下面板不用滚动(「局域网房间」的搜索状态挪进了它的标题行,腾出这多出来的一行按钮)
 	_mode = Settings.last_mode()
 	if not GameMode.menu_modes().has(_mode):
@@ -367,13 +367,16 @@ func _on_host_pressed() -> void:
 
 
 static func default_room_name(pname: String, mode: String) -> String:
-	# 没填房名时:骗子酒馆「X 的酒馆」,德州「X 的牌局」,炸弹猫「X 的猫窝」,吹牛骰子「X 的骰子局」,斗地主「X 的斗地主」
+	# 没填房名时:骗子酒馆「X 的酒馆」,德州「X 的牌局」,炸弹猫「X 的猫窝」,吹牛骰子「X 的骰子局」,斗地主「X 的斗地主」,
+	# 21 点「X 的 21 点」
 	if GameMode.is_bomb_cat(mode):
 		return "%s 的猫窝" % pname
 	if GameMode.is_liars_dice(mode):
 		return "%s 的骰子局" % pname
 	if mode == GameMode.DOU_DIZHU:
 		return "%s 的斗地主" % pname
+	if GameMode.is_blackjack(mode):
+		return "%s 的 21 点" % pname
 	return ("%s 的牌局" if GameMode.is_poker(mode) else "%s 的酒馆") % pname
 
 

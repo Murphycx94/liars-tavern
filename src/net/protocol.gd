@@ -18,7 +18,8 @@ class_name Protocol
 #     本地补成别的物种,各端画面不一致),不能同桌。RPC 表不变
 # v11:托管改由玩家自己的电脑代打(本机 AI 或内置策略):斗地主托管中的人照常给完整回合(旧版本托管时要干等),
 #     德州托管与托管来源 by 走 rpc_session_intent(旧房主不认);RPC 表不变
-const VERSION := 11
+# v12:新玩法 21 点(blackjack):旧版本不认识这个玩法 id,不能同桌;意图走已有的 rpc_session_intent,RPC 表不变
+const VERSION := 12
 
 # 发现端口段:同机多开时每个实例各绑定其中一个空闲端口,房主对每个端口都广播一份
 const DISCOVERY_PORT := 47800

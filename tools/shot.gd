@@ -20,6 +20,9 @@ extends SceneTree
 # --hud= 按位置给每个机位一个状态(DouDizhuShowcase.HUD_STATES:bidding / landlord / playing / bomb / rocket / plane / spring /
 # settlement),没写时用 playing。全套:--views=ddz_seat,ddz_seat,ddz_seat,ddz_seat,ddz_overview,ddz_seat,ddz_seat,ddz_seat,ddz_fp
 #       --hud=bidding,landlord,playing,bomb,rocket,plane,spring,settlement,playing --dou-dizhu-showcase
+# --blackjack-showcase 时摆 21 点展台(tools/blackjack_showcase.gd,7 人大桌):机位 bj_seat / bj_overview / bj_fp(第一人称);
+#   --hud=bet,play,wait,settled,busted,joining,settlement 按 --views 的位置对应(见 BlackjackShowcase.HUD_STATES)。
+#   例:--blackjack-showcase --views=bj_seat,bj_seat,bj_seat,bj_overview,bj_fp --hud=bet,play,settled,wait,play
 # --liars-dice-showcase 时摆吹牛骰子展台(tools/liars_dice_showcase.gd,6 人大桌):机位 dice_seat / dice_overview / dice_fp(第一人称)/
 # dice_close(骰盅与骰子特写)/ dice_peek(第一人称偷看时视线压低);--hud= 按位置给每个机位一个状态
 # (LiarsDiceShowcase.HUD_STATES:bidding / peek / counting / lost / out / settlement),没写时 dice_overview 用 out,其余用 bidding。
@@ -68,6 +71,7 @@ var _poker: Node = null
 var _bomb: Node = null
 var _ddz: Node = null
 var _dice: Node = null
+var _bj: Node = null
 var _showcase: Node = null
 var _ui: Control = null
 var _celebrate_world: TableWorld = null   # --celebrate:开演庆祝的那张牌桌
@@ -146,6 +150,11 @@ func _run() -> void:
 		root.add_child(dice)
 		await dice.build(tavern)
 		_dice = dice
+	if opts.has("blackjack-showcase"):
+		var bj: Node = load("res://tools/blackjack_showcase.gd").new()
+		root.add_child(bj)
+		await bj.build(tavern)
+		_bj = bj
 	if opts.has("celebrate"):
 		await _stage_celebration()
 	if opts.has("neck"):
@@ -182,6 +191,10 @@ func _run() -> void:
 				hud_state = {"bomb_overview": BombCatShowcase.STATE_EXPLODED, "bomb_close": BombCatShowcase.STATE_BOMB}.get(view,
 					BombCatShowcase.STATE_TURN)
 			await _place_bomb_camera(tavern, view, hud_state)
+		elif view.begins_with("bj_") and _bj != null:
+			if hud_state == "" or not BlackjackShowcase.HUD_STATES.has(hud_state):
+				hud_state = BlackjackShowcase.STATE_PLAY
+			await _place_bj_camera(tavern, view, hud_state)
 		elif view.begins_with("dice_") and _dice != null:
 			if hud_state == "" or not LiarsDiceShowcase.HUD_STATES.has(hud_state):
 				hud_state = LiarsDiceShowcase.STATE_OUT if view == "dice_overview" else LiarsDiceShowcase.STATE_BIDDING
@@ -469,6 +482,31 @@ func _place_dice_camera(tavern: Tavern, view: String, state: String) -> void:
 		_dice.clear_hud()
 	else:
 		_dice.stage_hud(_ui, state)
+
+
+func _place_bj_camera(tavern: Tavern, view: String, state: String) -> void:
+	# 21 点机位:取自展台的牌桌(本机座位 = 1 号):bj_seat 越肩、bj_overview 观战俯视、bj_fp 第一人称
+	var world: TableWorld = _bj.world
+	var rig := tavern.camera_rig
+	if view == "bj_fp":
+		CameraViews.place_first_person(rig, world, BlackjackShowcase.ME, "fp")
+	else:
+		CameraViews.leave_first_person(world, BlackjackShowcase.ME)
+		rig.stop_follow()
+		rig.camera.fov = CameraRig.DEFAULT_FOV
+		rig.fill_light.light_energy = TableWorld.SEAT_FILL_LIGHT if view == "bj_seat" else 0.0
+		world.set_patron_visible(BlackjackShowcase.ME, view != "bj_overview")
+		var xform: Transform3D = world.overview_view() if view == "bj_overview" else world.third_person_view(BlackjackShowcase.ME)
+		rig.snap(xform.origin, xform.origin - xform.basis.z)
+	if _ui == null:
+		var layer := CanvasLayer.new()
+		root.add_child(layer)
+		_ui = Control.new()
+		_ui.theme = UiTheme.theme()
+		_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_ui.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		layer.add_child(_ui)
+	_bj.stage_hud(_ui, rig.camera, state)
 
 
 func _poker_table(tavern: Tavern) -> TableWorld:

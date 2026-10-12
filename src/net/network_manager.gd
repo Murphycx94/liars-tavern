@@ -1,6 +1,7 @@
 extends Node
 # 网络管理(autoload "Net"):房主权威 listen-server。
-# 房主持有等待厅名单与唯一的会话对象(LiarsSession / PokerSession / BombCatSession / LiarsDiceSession / DouDizhuSession,
+# 房主持有等待厅名单与唯一的会话对象(LiarsSession / PokerSession / BombCatSession / LiarsDiceSession / DouDizhuSession /
+# BlackjackSession,
 # 规格 §4.2);客户端只发意图、收视图与事件。
 # 这里只管连接、等待厅、RPC 收发与计时器,玩法逻辑都在会话里。
 # UI 层只使用本类的公开方法、只读属性与信号,不直接触碰 multiplayer API。
@@ -690,7 +691,7 @@ func start_game() -> void:
 
 
 static func _new_session(mode: String) -> GameSession:
-	# 按玩法建会话:德州(长牌 / 短牌)、炸弹猫、吹牛骰子、斗地主,其余是骗子酒馆
+	# 按玩法建会话:德州(长牌 / 短牌)、炸弹猫、吹牛骰子、斗地主、21 点,其余是骗子酒馆
 	if GameMode.is_poker(mode):
 		return PokerSession.new(mode)
 	if GameMode.is_bomb_cat(mode):
@@ -699,6 +700,8 @@ static func _new_session(mode: String) -> GameSession:
 		return LiarsDiceSession.new()
 	if GameMode.is_dou_dizhu(mode):
 		return DouDizhuSession.new()
+	if GameMode.is_blackjack(mode):
+		return BlackjackSession.new()
 	return LiarsSession.new()
 
 
@@ -822,7 +825,7 @@ func request_sit_in() -> void:
 
 
 func end_poker_session() -> void:
-	# 仅房主:有进行中的手牌就打完这一手再结算(规格 §2.9);斗地主的「散局」也走这里(DouDizhuSession.request_end)。
+	# 仅房主:有进行中的手牌就打完这一手再结算(规格 §2.9);斗地主、21 点的「散局」也走这里(会话的 request_end)。
 	# 骗子酒馆、炸弹猫与已在散局的牌局没有事件
 	if not is_host or not in_game or _session == null:
 		return

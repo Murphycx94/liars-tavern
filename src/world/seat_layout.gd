@@ -21,8 +21,8 @@ const LIARS_DICE_BIG_TABLE_FROM := 5
 
 static func table_radius_for(mode: String, players := 0) -> float:
 	# players:本局人数(炸弹猫与吹牛骰子按它选桌;不知道时传 0,用小桌,如等待厅与主菜单)
-	if GameMode.is_poker(mode):
-		return POKER_TABLE_RADIUS
+	if GameMode.is_poker(mode) or GameMode.is_blackjack(mode):
+		return POKER_TABLE_RADIUS   # 德州最多 8 人,21 点最多 7 人,桌心还要摆庄家的牌
 	if GameMode.is_bomb_cat(mode) and players >= BOMB_CAT_BIG_TABLE_FROM:
 		return POKER_TABLE_RADIUS
 	if GameMode.is_liars_dice(mode) and players >= LIARS_DICE_BIG_TABLE_FROM:

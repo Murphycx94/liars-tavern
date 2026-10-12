@@ -9,11 +9,12 @@ const SHORT_DECK := "short_deck"    # 德州扑克·短牌(36 张,去掉 2–5)
 const BOMB_CAT := "bomb_cat"        # 炸弹猫:摸到炸弹没拆弹就出局
 const LIARS_DICE := "liars_dice"    # 吹牛骰子:骰盅吹牛(大话骰),1 点万能,丢光骰子出局
 const DOU_DIZHU := "dou_dizhu"      # 斗地主:正好 3 人,叫分制,连续多手累计分
+const BLACKJACK := "blackjack"      # 21 点:1–7 人各自和酒馆庄家对赌的现金局
 # 合法的玩法 id(认得的房间、网络、测试都按它);两种德州挨着放最后。
 # 不在 ALL 里的 MENU_ORDER 玩法 is_valid 为假,主菜单画成灰掉的占位按钮;进了 ALL 就自动亮起来
-const ALL := [LIARS, BOMB_CAT, LIARS_DICE, DOU_DIZHU, HOLDEM, SHORT_DECK]
-# 主菜单玩法切换的格子顺序(三列两行):第一行骗子酒馆、炸弹猫、吹牛骰子,第二行斗地主、德州·长牌、德州·短牌
-const MENU_ORDER := [LIARS, BOMB_CAT, LIARS_DICE, DOU_DIZHU, HOLDEM, SHORT_DECK]
+const ALL := [LIARS, BOMB_CAT, LIARS_DICE, DOU_DIZHU, BLACKJACK, HOLDEM, SHORT_DECK]
+# 主菜单玩法切换的格子顺序(四列两行):第一行骗子酒馆、炸弹猫、吹牛骰子、斗地主,第二行 21 点、德州·长牌、德州·短牌
+const MENU_ORDER := [LIARS, BOMB_CAT, LIARS_DICE, DOU_DIZHU, BLACKJACK, HOLDEM, SHORT_DECK]
 const DEFAULT := LIARS
 # 主菜单开房能不能选炸弹猫 / 吹牛骰子。只管菜单:id 照样合法(认得别人开的房间、网络与测试照常),
 # 万一发版时牌桌界面没就绪,改成 false 就在开房菜单里灰掉(不能选)
@@ -26,11 +27,13 @@ const POKER_MAX_PLAYERS := 8
 const BOMB_CAT_MAX_PLAYERS := 6     # 与 BombCatDeck.MAX_PLAYERS 一致(配牌表只到 6 人)
 const LIARS_DICE_MAX_PLAYERS := 6   # 与 LiarsDiceState.MAX_PLAYERS 一致
 const DOU_DIZHU_PLAYERS := 3        # 斗地主正好三人(min = max),与 DdzState.PLAYERS 一致
+const BLACKJACK_MIN_PLAYERS := 1    # 21 点和庄家对赌,一个人也能开;与 BjRules 一致
+const BLACKJACK_MAX_PLAYERS := 7
 
 const _LABELS := {LIARS: "骗子酒馆", HOLDEM: "德州扑克·长牌", SHORT_DECK: "德州扑克·短牌", BOMB_CAT: "炸弹猫",
-	LIARS_DICE: "吹牛骰子", DOU_DIZHU: "斗地主"}
+	LIARS_DICE: "吹牛骰子", DOU_DIZHU: "斗地主", BLACKJACK: "21 点"}
 const _SHORT_LABELS := {LIARS: "骗子酒馆", HOLDEM: "德州·长牌", SHORT_DECK: "德州·短牌", BOMB_CAT: "炸弹猫",
-	LIARS_DICE: "吹牛骰子", DOU_DIZHU: "斗地主"}
+	LIARS_DICE: "吹牛骰子", DOU_DIZHU: "斗地主", BLACKJACK: "21 点"}
 const UNKNOWN_LABEL := "未知玩法"
 
 
@@ -56,6 +59,15 @@ static func is_liars_dice(mode: String) -> bool:
 
 static func is_dou_dizhu(mode: String) -> bool:
 	return mode == DOU_DIZHU
+
+
+static func is_blackjack(mode: String) -> bool:
+	return mode == BLACKJACK
+
+
+static func is_cash_game(mode: String) -> bool:
+	# 现金局:筹码可以再领、开打后新玩家下一手 / 下一局入座、房主随时散局按盈亏结算(德州两种、21 点)
+	return is_poker(mode) or is_blackjack(mode)
 
 
 static func has_bots(mode: String) -> bool:
@@ -85,6 +97,8 @@ static func summary(mode: String) -> String:
 
 
 static func min_players(mode: String) -> int:
+	if is_blackjack(mode):
+		return BLACKJACK_MIN_PLAYERS
 	return DOU_DIZHU_PLAYERS if is_dou_dizhu(mode) else MIN_PLAYERS
 
 
@@ -95,9 +109,12 @@ static func max_players(mode: String) -> int:
 		return BOMB_CAT_MAX_PLAYERS
 	if is_liars_dice(mode):
 		return LIARS_DICE_MAX_PLAYERS
+	if is_blackjack(mode):
+		return BLACKJACK_MAX_PLAYERS
 	return DOU_DIZHU_PLAYERS if is_dou_dizhu(mode) else LIARS_MAX_PLAYERS
 
 
 static func allows_late_join(mode: String) -> bool:
-	# 德州是现金局:开打后新玩家仍可加入,下一手开始发牌;骗子酒馆、炸弹猫、吹牛骰子(与斗地主)一局打到底,不收中途加入
-	return is_poker(mode)
+	# 德州与 21 点是现金局:开打后新玩家仍可加入,下一手 / 下一局开始发牌;
+	# 骗子酒馆、炸弹猫、吹牛骰子(与斗地主)一局打到底,不收中途加入
+	return is_cash_game(mode)

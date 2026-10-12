@@ -5,8 +5,8 @@ extends Node
 #   --species=物种id     本次运行想要的形象(fox/bear/…/crocodile/panda/penguin),只覆盖本次、不写设置;
 #                        每次名单更新与开局时打印 [debug] species {pid: id}(冒烟测试比对各进程)
 #   --autohost[=N]       自动建房;满 N 人(默认 2)且全员准备后自动开局
-#   --mode=玩法id        配合 --autohost:liars / bomb_cat / liars_dice / dou_dizhu / holdem / short_deck(默认 liars;非法值退出码 1),默认房名跟着玩法
-#   --hands=N            德州 / 斗地主房主:演到第 N 手开始时散局(本手结束后结算);非法值退出码 1
+#   --mode=玩法id        配合 --autohost:liars / bomb_cat / liars_dice / dou_dizhu / blackjack / holdem / short_deck(默认 liars;非法值退出码 1),默认房名跟着玩法
+#   --hands=N            德州 / 斗地主 / 21 点房主:演到第 N 手(局)开始时散局(本手结束后结算);非法值退出码 1
 #   --add-bots=N         德州 / 斗地主房主:开房后在等待厅添加 N 个机器人(房主端托管,AI 设置照本机设置);配合 --autohost=N+1 自动开局
 #   --ai-dialog          配合 --shots:主菜单出来后打开「AI 设置」面板,拍 ai_dialog(检查面板排版)
 #   --no-ai              本次运行不用 AI(设置文件里开了也不用,不改文件):机器人与托管都用内置策略
@@ -21,7 +21,8 @@ extends Node
 #                        德州按合法动作下注、输光再领(见 PokerBot);
 #                        炸弹猫里由 BombCatBot 出牌、偶尔不行!、摸牌、塞回、给牌(同样走牌桌的公开入口);
 #                        斗地主里由 DdzBot 随机叫分、按「提示」出牌、偶尔不出(同样走牌桌的公开入口);
-#                        吹牛骰子里由 LiarsDiceBot 喊价或「开!」(经出价器的 nudge_count / pick_face 与 submit_bid / submit_challenge)
+#                        吹牛骰子里由 LiarsDiceBot 喊价或「开!」(经出价器的 nudge_count / pick_face 与 submit_bid / submit_challenge);
+#                        21 点里随机下注(偶尔这局不玩)、按简化的基本策略要牌 / 停牌 / 加倍 / 分牌,输光再领、离座回座(走 BlackjackScreen 的入口)
 #   --no-fidget          配合 --bot:不按 W / S 探头缩头(截图检查时画面不被自己伸出去的头挡住;冒烟测试的脖子同步要靠它,别加)
 #   --fast[=倍率]        加速演出(Engine.time_scale,默认 3)
 #   --quit-after-match   对局结束后退出(退出码 0);中途失败退出码 1
@@ -249,6 +250,9 @@ func _process(delta: float) -> void:
 	if screen != null and screen.get("state") is LiarsDiceScreenState:
 		_dice_bot_tick(screen, delta)
 		return
+	if screen != null and screen.get("state") is BjScreenState:
+		_bj_tick(screen, delta)
+		return
 	if screen != null and screen.has_method("choose_rebuy"):
 		_poker_tick(screen, delta)
 		return
@@ -279,6 +283,53 @@ func _bot_quip(screen: Node, delta: float) -> void:
 		if not is_instance_valid(quips):
 			return
 	quips.choose(randi() % Quips.LINES.size())
+
+
+func _bj_tick(screen: Node, delta: float) -> void:
+	# 21 点:能下注就下(偶尔这局不玩),轮到自己按 bj_choice 决策;输光再领、离座回座。散局后什么都不做
+	if _match_finished:
+		return
+	var status: String = screen.my_status()
+	var seat_choice: bool = status in [BjRules.STATUS_BUSTED, BjRules.STATUS_AWAY]
+	if not screen.can_bet() and not screen.is_my_turn() and not seat_choice:
+		_think_timer = randf_range(BOT_THINK.x, BOT_THINK.y)
+		return
+	_think_timer -= delta
+	if _think_timer > 0.0:
+		return
+	_think_timer = BOT_RETRY
+	if status == BjRules.STATUS_BUSTED:
+		screen.choose_rebuy()
+	elif status == BjRules.STATUS_AWAY:
+		screen.choose_sit_in()
+	elif screen.can_bet():
+		if randf() < 0.1:
+			screen.submit_skip()
+		else:
+			screen.submit_bet(BjControls.clamp_bet(BjRules.BET_UNIT * randi_range(1, 15), screen.state.row(Net.my_pid()).get("stack", 0)))
+	elif screen.is_my_turn():
+		var hands: Array = screen.state.hands_of(Net.my_pid())
+		var hand: Dictionary = hands[screen.state.current["hand"]]
+		screen.submit_action(bj_choice(hand["cards"], screen.state.dealer_cards, screen.legal()))
+
+
+static func bj_choice(cards: Array, dealer: Array, legal: Dictionary) -> String:
+	# 调试 bot 的简化基本策略:对 A、对 8 分;硬 10 / 11 对庄家小牌加倍;硬 16 对庄家 10 投降;
+	# 硬 17 以上、软 18 以上停;庄家 2–6 时硬 13–16 停;其余要牌
+	var score := BjScore.evaluate(cards)
+	var total: int = score["total"]
+	var up: int = BjScore.card_value(dealer[0]) if not dealer.is_empty() else 10
+	if legal.get(BjRules.SPLIT, false) and [8, 11].has(BjScore.card_value(cards[0])):
+		return BjRules.SPLIT
+	if legal.get(BjRules.DOUBLE, false) and not score["soft"] and total in [10, 11] and up < total:
+		return BjRules.DOUBLE
+	if legal.get(BjRules.SURRENDER, false) and not score["soft"] and total == 16 and up == 10:
+		return BjRules.SURRENDER
+	if total >= 18 or (total == 17 and not score["soft"]):
+		return BjRules.STAND
+	if not score["soft"] and total >= 13 and up <= 6:
+		return BjRules.STAND
+	return BjRules.HIT
 
 
 func _poker_tick(screen: Node, delta: float) -> void:
@@ -529,6 +580,8 @@ func _on_game_started(seats: Array) -> void:
 		director.event_started.connect(_on_poker_event)
 	elif director is DdzDirector:
 		director.event_started.connect(_on_ddz_event)
+	elif director is BlackjackDirector:
+		director.event_started.connect(_on_bj_event)
 	if director != null and opts.has("camera") and director.get("seat_camera") != null:
 		director.seat_camera.set_first_person(opts["camera"] == "first", false)
 		_capture_once("seat", 3.0)
@@ -608,6 +661,38 @@ func _on_poker_event(ev: Dictionary) -> void:
 				_capture_once("spectate", PokerDirector.CAMERA_MOVE + 0.8)
 		"session_over":
 			_capture_once("settlement", PokerDirector.SESSION_OVER_HOLD + 1.0)
+			if opts.has("quit-after-match"):
+				await get_tree().create_timer(5.0 if Net.is_host else 4.0).timeout
+				app.quit_game(0)
+
+
+func _on_bj_event(ev: Dictionary) -> void:
+	# 21 点截图标记:bet、deal、my_turn、split、double、dealer、settled、settlement;房主打到 --hands 局散局
+	match ev.get("type", ""):
+		"round_started":
+			_capture_once("bet", BlackjackDirector.ROUND_SETTLE + 0.8)
+			print("[debug] ROUND_STARTED round=", ev.get("round"))
+			if Net.is_host and _hands_limit > 0 and ev.get("round") == _hands_limit:
+				print("[debug] ending session at round ", _hands_limit)
+				Net.end_poker_session()
+		"dealt":
+			_capture_once("deal", 2.2)
+			if Net.my_pid() in ev.get("order", []):
+				_hands_dealt += 1
+				print("[debug] DEALT hands=", _hands_dealt)
+		"turn":
+			if ev.get("pid") == Net.my_pid():
+				_capture_once("my_turn", 0.3)
+		"split":
+			_capture_once("split", 1.1)
+		"double":
+			_capture_once("double", 0.9)
+		"dealer_reveal":
+			_capture_once("dealer", 0.9)
+		"settled":
+			_capture_once("settled", 1.0)
+		"session_over":
+			_capture_once("settlement", BlackjackDirector.SESSION_OVER_HOLD + 1.0)
 			if opts.has("quit-after-match"):
 				await get_tree().create_timer(5.0 if Net.is_host else 4.0).timeout
 				app.quit_game(0)

@@ -1,6 +1,6 @@
 extends RefCounted
-# 主菜单「开一桌」标题旁的玩法切换:六种玩法排成三列两行的格子(GameMode.MENU_ORDER:骗子酒馆、炸弹猫、吹牛骰子 /
-# 斗地主、德州·长牌、德州·短牌),互斥的小号切换按钮、预选传入的玩法。开房选不了的(GameMode.menu_modes() 之外,
+# 主菜单「开一桌」标题旁的玩法切换:七种玩法排成四列两行的格子(GameMode.MENU_ORDER:骗子酒馆、炸弹猫、吹牛骰子、斗地主 /
+# 21 点、德州·长牌、德州·短牌),互斥的小号切换按钮、预选传入的玩法。开房选不了的(GameMode.menu_modes() 之外,
 # 如斗地主分支登记之前)照样占一个格子,画成灰掉的按钮,版面不跟着变。
 # 格子放在标题右边、不另占一整行(1280×720 下面板不用滚动),所以每种状态的样式都换成小内边距:
 # 按钮的最小尺寸取各状态样式里最大的那个;同一列等宽并铺满剩下的宽度。切到别的玩法回调 on_select(mode),被挤掉的按钮不回调。
@@ -8,7 +8,7 @@ extends RefCounted
 
 const FONT_SIZE := 15
 const PADDING := Vector2(9, 3)    # 左右, 上下:两行按钮叠起来,上下内边距收到 3
-const COLUMNS := 3
+const COLUMNS := 4
 const SEPARATION := 6             # 列间距
 const ROW_SEPARATION := 4         # 行间距
 const UNAVAILABLE_NOTE := "还在布置中"   # 灰掉的格子的提示后缀

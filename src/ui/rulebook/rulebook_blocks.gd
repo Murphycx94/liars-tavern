@@ -56,6 +56,8 @@ static func build(block: Dictionary) -> Control:
 			return _ddz_combos(block["items"])
 		"ddz_order":
 			return _ddz_order(block)
+		"bj_hands":
+			return _bj_hands(block["items"])
 	push_warning("说明书:未知的块类型 %s" % block["type"])
 	return Control.new()
 
@@ -387,6 +389,32 @@ static func _hand_row(item: Dictionary) -> Control:
 		short_text += " ↑" if item["short"] < item["long"] else " ↓"
 	cells.add_child(_place_cell("ShortPlace", short_text, HANDS_HIGHLIGHT if highlight else UiTheme.PARCHMENT_DIM))
 	return _hands_line(cells, Color(UiTheme.BRASS, 0.13) if highlight else Color(0, 0, 0, 0.18), highlight)
+
+
+# —— 21 点的算点示例:每行一手牌(小牌面)、点数、一句说明 ——
+
+static func _bj_hands(items: Array) -> Control:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 3)
+	for item in items:
+		var cells := HBoxContainer.new()
+		var cards := HBoxContainer.new()
+		cards.add_theme_constant_override("separation", HAND_CARD_GAP)
+		cards.custom_minimum_size.x = 4 * HAND_CARD_SIZE.x + 3 * HAND_CARD_GAP
+		for card in item["cards"]:
+			var face := _card_face(card, HAND_CARD_SIZE)
+			face.stretch_mode = TextureRect.STRETCH_SCALE
+			cards.add_child(face)
+		cells.add_child(cards)
+		var total := UiTheme.label(item["total"], 20, TONES.get(item.get("tone", "brass"), UiTheme.BRASS_BRIGHT), UiTheme.display_font())
+		total.custom_minimum_size.x = HAND_NAME_WIDTH * 0.7
+		total.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		cells.add_child(total)
+		var caption := _paragraph(item["caption"], 15, UiTheme.PARCHMENT_DIM)
+		caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		cells.add_child(caption)
+		box.add_child(_hands_line(cells, Color(0, 0, 0, 0.18), false))
+	return box
 
 
 static func _hands_line(cells: HBoxContainer, tint: Color, accent: bool) -> PanelContainer:
