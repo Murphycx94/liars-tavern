@@ -29,6 +29,7 @@ class FakeChat:
 var net: StubNet
 var chat: FakeChat
 var _acted: Array = []   # 房主收到的 action 事件的出手者
+var _ai_marks: Array = []   # 这些 action 事件里的 "ai" 标记(没有记 false)
 
 
 func before_each():
@@ -45,10 +46,12 @@ func before_each():
 	net.bots._ai = chat
 	net.bots.add_child(chat)
 	_acted = []
+	_ai_marks = []
 	net.game_events.connect(func(events: Array) -> void:
 		for ev in events:
 			if ev["type"] == "action":
-				_acted.append(ev["pid"]))
+				_acted.append(ev["pid"])
+				_ai_marks.append(ev.get("ai", false)))
 
 
 func after_each():
@@ -191,6 +194,7 @@ func _bot_turn() -> int:
 		net._handle_poker_rpc(HOST, R.CALL, 0)
 	net._anim_left = 0.0
 	_acted = []
+	_ai_marks = []
 	return _current()
 
 
@@ -208,6 +212,7 @@ func test_ai_answer_drives_the_bot():
 	net.quip_shown.connect(func(pid: int, index: int) -> void: heard.append([pid, index]))
 	net.bots._process(PokerBots.THINK_MAX)
 	assert_eq(_acted, [bot], "按 AI 的回答出手了")
+	assert_eq(_ai_marks, [true], "带 ai 标记(记录里标「(ai)」)")
 	assert_eq(heard, [[bot, 1]], "AI 选的快捷对话也说了")
 
 
@@ -219,6 +224,7 @@ func test_ai_error_falls_back_to_the_brain():
 	net.bots._on_answered(101, false, "API Key 不对")
 	net.bots._process(PokerBots.THINK_MAX)
 	assert_eq(_acted, [bot], "内置策略接手")
+	assert_eq(_ai_marks, [false], "内置策略出的不带标记")
 	assert_signal_emitted(net.bots, "notice")
 
 

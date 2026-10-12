@@ -7,8 +7,8 @@ extends Node
 #   --autohost[=N]       自动建房;满 N 人(默认 2)且全员准备后自动开局
 #   --mode=玩法id        配合 --autohost:liars / bomb_cat / liars_dice / dou_dizhu / holdem / short_deck(默认 liars;非法值退出码 1),默认房名跟着玩法
 #   --hands=N            德州 / 斗地主房主:演到第 N 手开始时散局(本手结束后结算);非法值退出码 1
-#   --add-bots=N         德州房主:开房后在等待厅添加 N 个机器人(房主端托管,AI 设置照本机设置);配合 --autohost=N+1 自动开局
-#   --ai-dialog          配合 --shots:德州房主进等待厅后打开「AI 设置」面板,拍 ai_dialog(检查面板排版)
+#   --add-bots=N         德州 / 斗地主房主:开房后在等待厅添加 N 个机器人(房主端托管,AI 设置照本机设置);配合 --autohost=N+1 自动开局
+#   --ai-dialog          配合 --shots:德州 / 斗地主房主进等待厅后打开「AI 设置」面板,拍 ai_dialog(检查面板排版)
 #   --ai-url=地址 --ai-model=模型 [--ai-key=Key]  本次运行让 AI 接管机器人(不写设置文件;冒烟测试接本机假接口)
 #   --port=端口          房主优先绑定的游戏端口(并行测试互不串房)
 #   --room=房名          房主的房间名
@@ -186,11 +186,13 @@ func _ready() -> void:
 		if err != OK:
 			_fail("host_failed")
 		if opts.has("ai-url"):
-			Net.bots.set_config({AiSettings.KEY_URL: opts["ai-url"], AiSettings.KEY_MODEL: opts.get("ai-model", ""),
+			Net.set_bot_ai_config({AiSettings.KEY_URL: opts["ai-url"], AiSettings.KEY_MODEL: opts.get("ai-model", ""),
 				AiSettings.KEY_API_KEY: opts.get("ai-key", ""), AiSettings.KEY_ENABLED: true})
-			Net.bots.notice.connect(func(text: String): print("[debug] BOT_NOTICE ", text))
-			Net.bots.decided.connect(func(pid: int, action: String, amount: int, by_ai: bool):
-				print("[debug] BOT_DECIDED pid=%d %s %d by=%s" % [pid, action, amount, "ai" if by_ai else "brain"]))
+		if opts.has("ai-url") or opts.has("add-bots"):
+			for driver in [Net.bots, Net.ddz_bots]:
+				driver.notice.connect(func(text: String): print("[debug] BOT_NOTICE ", text))
+				driver.decided.connect(func(pid: int, action: String, amount: int, by_ai: bool):
+					print("[debug] BOT_DECIDED pid=%d %s %d by=%s" % [pid, action, amount, "ai" if by_ai else "brain"]))
 		for i in int(opts.get("add-bots", "0")):
 			Net.add_bot()
 	elif opts.has("autojoin"):

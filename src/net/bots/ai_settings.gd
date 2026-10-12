@@ -1,5 +1,5 @@
 class_name AiSettings
-# 德州机器人接 AI 的设置(user://settings.cfg 的 [ai] 段):接口地址、API Key、模型、是否让 AI 接管机器人。
+# 机器人(德州、斗地主)接 AI 的设置(user://settings.cfg 的 [ai] 段):接口地址、API Key、模型、是否让 AI 接管机器人。
 # 只存在房主本机,不会发给其他玩家;API Key 是明文存的(和浏览器记住的密码一样,别把设置文件发给别人)。
 # 接口两种:OpenAI 兼容的 /chat/completions(DeepSeek、通义千问、Kimi、OpenRouter、本机 Ollama 等都是这种),
 # 以及 Anthropic 的 /v1/messages(地址里带 anthropic 或以 /messages 结尾时按它发)。

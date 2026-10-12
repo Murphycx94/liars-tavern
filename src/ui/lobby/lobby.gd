@@ -4,7 +4,7 @@ extends Control
 # 房主的局域网广播发不出去时,面板里用红字提示大家改用 IP 直连。
 # 名单每行有房主分配的形象头像;点自己那一行的头像弹出挑选面板(贴在面板左边),被占的格子写占用者名字。
 # 换形象发给房主,收到下一份名单时结算:拿到了存进本机设置,被别人抢先了提示一句。
-# 德州房主还有一行机器人操作:「添加机器人」与「AI 设置」(填大模型接口后机器人由 AI 接管);机器人那一行标「机器人」或「AI」。
+# 德州 / 斗地主房主还有一行机器人操作:「添加机器人」与「AI 设置」(填大模型接口后机器人由 AI 接管);机器人那一行标「机器人」或「AI」。
 
 
 const PANEL_WIDTH := 440.0
@@ -54,7 +54,7 @@ var _my_species := Species.UNASSIGNED
 var _pending := Species.UNASSIGNED    # 已发给房主、还没结算的换形象请求
 var _pending_deadline := 0
 var _pick_locked_until := 0
-var _bot_button: Button = null        # 德州房主才有
+var _bot_button: Button = null        # 德州 / 斗地主房主才有
 var _bot_mode_label: Label = null
 
 
@@ -130,7 +130,7 @@ func _build() -> void:
 	_list_scroll.add_child(_list)
 	_status = UiTheme.label("", 15, UiTheme.PARCHMENT_DIM)
 	box.add_child(_status)
-	if Net.is_host and GameMode.is_poker(Net.game_mode):
+	if Net.is_host and GameMode.has_bots(Net.game_mode):
 		box.add_child(_build_bot_row())
 	box.add_child(_build_buttons())
 	# 挑选面板铺满屏幕当遮罩、面板贴在侧栏左边:不进侧栏,德州 8 人时面板也不会超过 672 像素
@@ -180,7 +180,7 @@ func _build_buttons() -> HBoxContainer:
 
 
 func _build_bot_row() -> HBoxContainer:
-	# 德州房主:添加机器人(满员时变灰)、AI 设置,右边一行小字说明机器人现在由谁来打
+	# 德州 / 斗地主房主:添加机器人(满员时变灰)、AI 设置,右边一行小字说明机器人现在由谁来打
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	_bot_button = row_button("添加机器人")
@@ -499,8 +499,7 @@ func _open_ai_settings() -> void:
 	var dialog := AiSettingsDialog.new(Net.bots.config)
 	dialog.saved.connect(func(values: Dictionary) -> void:
 		AiSettings.save_config(values, settings_path)
-		Net.bots.set_config(values)
-		Net.refresh_bot_meta()
+		Net.set_bot_ai_config(values)
 		app.toast(bot_mode_text(Net.bots.config), UiTheme.BRASS_BRIGHT))
 	add_child(dialog)
 

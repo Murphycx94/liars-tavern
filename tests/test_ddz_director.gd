@@ -82,6 +82,11 @@ func test_texts_and_winners():
 	assert_eq(D.played_text(ev, names), "阿狸 出了 顺子 · 5 张:7 6 5 4 3")
 	ev["auto"] = true
 	assert_string_ends_with(D.played_text(ev, names), "(托管)")
+	ev["auto"] = false
+	ev["ai"] = true
+	assert_eq(D.played_text(ev, names), "阿狸 出了 顺子 · 5 张:7 6 5 4 3(ai)", "机器人按 AI 出的牌标「(ai)」")
+	assert_eq(D._auto_tag({"ai": true}), "(ai)")
+	assert_eq(D._auto_tag({"ai": "yes"}), "", "坏字段不标")
 	assert_eq(D.played_text({"pid": 3, "cards": H.cards("SJ BJ"), "combo": DdzHand.ROCKET}, names), "小熊 出了 王炸")
 	assert_eq(D.winners_of({"landlord": 2, "landlord_won": true}, [1, 2, 3]), [2])
 	assert_eq(D.winners_of({"landlord": 2, "landlord_won": false}, [1, 2, 3]), [1, 3])

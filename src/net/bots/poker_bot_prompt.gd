@@ -147,9 +147,7 @@ static func parse(text: String, legal: Dictionary) -> Dictionary:
 
 
 static func parse_json(text: String) -> Variant:
-	# 解析失败返回 null。不用 JSON.parse_string:它对坏 JSON 会往引擎日志里报错,而 AI 答错格式是常事
-	var json := JSON.new()
-	return json.data if json.parse(text) == OK else null
+	return AiChat.parse_json(text)
 
 
 static func _legal_choice(action: String, amount: Variant, legal: Dictionary) -> Dictionary:

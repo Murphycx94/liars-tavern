@@ -77,6 +77,8 @@ func test_action_text():
 	assert_eq(PokerDirector.action_text({"action": "raise", "amount": 60, "bet": 1240, "all_in": false}), "加注到 1,240")
 	assert_eq(PokerDirector.action_text({"action": "raise", "amount": 960, "bet": 980, "all_in": true}), "全下 980")
 	assert_eq(PokerDirector.action_text({"action": "fold", "amount": 0, "bet": 0, "all_in": false, "timeout": true}), "弃牌(超时)")
+	assert_eq(PokerDirector.action_text({"action": "call", "amount": 20, "bet": 20, "all_in": false, "ai": true}), "跟注 20(ai)",
+		"机器人按 AI 出手标「(ai)」")
 	assert_eq(PokerDirector.action_text({"action": 7}), "7", "坏字段不崩")
 
 

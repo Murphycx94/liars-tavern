@@ -72,11 +72,7 @@ static func played_text(ev: Dictionary, names: Callable) -> String:
 	var text := "%s 出了 %s" % [names.call(ev.get("pid")), DdzScreenState.combo_text({"type": combo, "count": cards_played.size()})]
 	if combo != DdzHand.ROCKET:
 		text += ":" + " ".join(DdzLayout.row_order(cards_played).map(func(c: int) -> String: return DdzHand.RANK_LABELS[DdzHand.rank(c)]))
-	if ev.get("auto") is bool and ev["auto"]:
-		text += "(托管)"
-	elif ev.get("timed_out") is bool and ev["timed_out"]:
-		text += "(超时)"
-	return text
+	return text + _auto_tag(ev)
 
 
 static func effect_for(combo: String) -> String:
@@ -537,10 +533,13 @@ func _bubble(pid: Variant, text: String, color := UiTheme.INK) -> void:
 
 
 static func _auto_tag(ev: Dictionary) -> String:
+	# 记录行尾的标记:托管代打、超时代打、机器人按 AI 的回答出手(房主加的 "ai" 字段;没有就是内置策略或真人)
 	if ev.get("auto") is bool and ev["auto"]:
 		return "(托管)"
 	if ev.get("timed_out") is bool and ev["timed_out"]:
 		return "(超时)"
+	if ev.get("ai") is bool and ev["ai"]:
+		return "(ai)"
 	return ""
 
 

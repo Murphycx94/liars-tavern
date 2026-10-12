@@ -83,13 +83,28 @@ static func parse_response(api_kind: String, code: int, text: String) -> Diction
 	# → {"ok": true, "text"} 或 {"ok": false, "error"}
 	if code < 200 or code >= 300:
 		return {"ok": false, "error": http_error(code, text)}
-	var data: Variant = PokerBotPrompt.parse_json(text)
+	var data: Variant = parse_json(text)
 	if not data is Dictionary:
 		return {"ok": false, "error": "接口返回的不是 JSON"}
 	var answer := _anthropic_text(data) if api_kind == AiSettings.KIND_ANTHROPIC else _openai_text(data)
 	if answer.strip_edges() == "":
 		return {"ok": false, "error": "模型没有给出回答"}
 	return {"ok": true, "text": answer}
+
+
+static func parse_json(text: String) -> Variant:
+	# 解析失败返回 null。不用 JSON.parse_string:它对坏 JSON 会往引擎日志里报错,而 AI 答错格式是常事
+	var json := JSON.new()
+	return json.data if json.parse(text) == OK else null
+
+
+static func answer_object(text: String) -> Variant:
+	# 模型回答里的 JSON 对象:容忍前后的废话与 ```json 代码块,取第一个 { 到最后一个 } 之间的部分;找不到为 null
+	var start := text.find("{")
+	var end := text.rfind("}")
+	if start < 0 or end <= start:
+		return null
+	return parse_json(text.substr(start, end - start + 1))
 
 
 static func _openai_text(data: Dictionary) -> String:

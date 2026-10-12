@@ -58,6 +58,11 @@ static func is_dou_dizhu(mode: String) -> bool:
 	return mode == DOU_DIZHU
 
 
+static func has_bots(mode: String) -> bool:
+	# 房主能在等待厅添加机器人的玩法(德州两种、斗地主)
+	return is_poker(mode) or is_dou_dizhu(mode)
+
+
 static func menu_modes() -> Array:
 	# 主菜单开房可选的玩法(按 MENU_ORDER 的顺序):合法且没被开关藏起来的;MENU_ORDER 里其余的画成灰掉的占位
 	return MENU_ORDER.filter(func(mode: String) -> bool:
