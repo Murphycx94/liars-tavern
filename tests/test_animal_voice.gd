@@ -124,11 +124,11 @@ func test_phrase_stream_is_cached_per_species_phrase_and_bucket():
 func test_prebuild_runs_on_worker_threads_and_poll_commits():
 	AnimalVoice.clear_cache()
 	AnimalVoice.prebuild(6, 1)
-	var waited := 0
-	while not AnimalVoice.is_cached(6, Banter.PHRASES.size() - 1, 1) and waited < 300:
+	# 工作线程按真实时间算完:用墙钟限时,不数帧(测试以 --fixed-fps 跑时帧几乎不花时间)
+	var deadline := Time.get_ticks_msec() + 10000
+	while not AnimalVoice.is_cached(6, Banter.PHRASES.size() - 1, 1) and Time.get_ticks_msec() < deadline:
 		AnimalVoice.poll()
 		await get_tree().process_frame
-		waited += 1
 	for phrase_id in Banter.PHRASES.size():
 		assert_true(AnimalVoice.is_cached(6, phrase_id, 1))
 	# 预热结果和当场合成一样

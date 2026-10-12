@@ -258,8 +258,9 @@
 ```bash
 export GODOT=/Applications/Godot.app/Contents/MacOS/Godot
 
-# 单元测试(GUT)
-$GODOT --headless --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit
+# 单元测试(GUT)。--fixed-fps 60 让游戏时间按帧推进、不等真实时间,全量 20 秒左右(不加要 6 分多钟);
+# 测试里要等真实时间的(工作线程、网络)用 Time.get_ticks_msec() 限时,别数帧
+$GODOT --headless --fixed-fps 60 --path . -s addons/gut/gut_cmdln.gd -gdir=res://tests -gexit
 
 # 联机冒烟:1 房主 + 2 个 bot(一个走局域网发现、一个直连),无头跑完整局;
 # 三人都要企鹅(--species=penguin),检查三端的形象表一致、房主拿到企鹅、另外两人各不相同;

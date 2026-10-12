@@ -89,6 +89,9 @@ func before_each():
 	add_child_autofree(view)
 	view.set_process(false)   # 由用例控制可见性
 	view.visible = true
+	# 等一帧再进用例:前一个脚本 await 过时,GUT 在处理组回调里接着跑,回调期间释放的节点地址会被引擎记下、
+	# 派发输入时跳过;这里新建的节点碰巧复用了那些地址,push_input 就收不到(偶发)。下一帧那份记录已清空
+	await get_tree().process_frame
 
 
 func _key(keycode: Key, pressed := true) -> InputEventKey:

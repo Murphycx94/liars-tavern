@@ -36,7 +36,7 @@ description: Use when the user asks to 打包、发布、发版、出新版本�
    - GitHub Release 正文可选写在 `docs/releases/v<version>.md`,不写按模板生成。`base_build = build` 时一定要写，第一段就说明老玩家需要重新下载安装包(没有这个文件 CI 不发)。
    - 提交信息照惯例把版本写在末尾：`chore: 发布 0.9.1:……;版本 0.9.1`。
    - 写完先自检:`GITHUB_OUTPUT=/dev/null bash tools/ci_release.sh plan`,要输出「发布 v…」。
-4. **推送前必须先测**:`$SHIP test`(在 worktree 里运行，几分钟，放后台)。CI 不跑单测，这是发出去之前唯一一道测试。没过就不推送，先修(superpowers:systematic-debugging)。rebase 进了别人的提交后要重测。
+4. **推送前必须先测**:`$SHIP test`(在 worktree 里运行，半分钟左右)。CI 不跑单测，这是发出去之前唯一一道测试。没过就不推送，先修(superpowers:systematic-debugging)。rebase 进了别人的提交后要重测。
 5. **推送 = 发布**：推之前再 `git fetch -q origin`;main 动过就 `git rebase -q origin/main`,并用 `git log --oneline <上次看过的 main>..origin/main` 看清多出来的提交——它们会一起进这一版，要在汇报里说。确认 `build.json`、`project.godot` 没被别人改，然后 `git push origin HEAD:main`。推不上(非快进)就重复这一步，绝不强推。push 时提示「Changes must be made through a pull request」是正常的(账号可绕过规则)。
 6. **盯 CI**:`gh run list -R Murphycx94/liars-tavern --workflow release.yml -L 3` 找到这次运行(headSha 是刚推的提交),把链接给用户，然后后台运行 `gh run watch <id> -R Murphycx94/liars-tavern --exit-status --interval 30`。失败时 `gh run view <id> --log-failed` 看原因，publish 步骤的偶发失败(网络、CDN 缓存)直接 `gh run rerun <id> --failed`(会认出已推过的更新源，只补 Release);build 步骤失败见下表。更新源已经推出去后又要改内容，只能 build 加一、改 version 重发。
 7. **汇报并更新记忆**：汇报版本、build、更新说明、Release 链接(`gh release view v<version>`)、一起发出去的别人的提交，以及是否需要重装；然后更新记忆 `liars-tavern-release-flow` 里「已经发布到哪个 build」那一条。

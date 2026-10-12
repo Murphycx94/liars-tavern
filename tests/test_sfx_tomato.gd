@@ -10,6 +10,7 @@ var sfx: Node
 
 func before_each():
 	sfx = autofree(SfxScript.new())
+	sfx._rng.seed = 1   # 噪声随机:不定种子时削波比例偶尔落在阈值上下,测试时好时坏
 
 
 func test_tomato_sounds_have_volume_entries():
