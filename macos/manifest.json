@@ -1,0 +1,11 @@
+{
+	"base_build": 1,
+	"build": 16,
+	"engine": "4.7.1.stable",
+	"notes": "新增:21 点!1–7 人和酒馆庄家对赌,能加倍、分牌、投降,一个人也能开",
+	"pck_file": "game-b16.pck",
+	"pck_sha256": "830fb2bc8bad0f99e57300811b35eeaff90eb543a65d5e669ccabc9be453faa7",
+	"pck_size": 2178688,
+	"platform": "macos",
+	"version": "0.13.0"
+}
